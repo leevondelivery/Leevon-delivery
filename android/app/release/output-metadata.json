@@ -4,7 +4,7 @@
     "type": "APK",
     "kind": "Directory"
   },
-  "applicationId": "com.delivery.app",
+  "applicationId": "com.leevon.delivery",
   "variantName": "release",
   "elements": [
     {
