@@ -496,7 +496,7 @@ export default function Home({ handleBacktoLogin }) {
                       onChange={(e) => setTermsAccepted(e.target.checked)}
                     />
                     <label className="form-check-label fw-bold small" htmlFor="termsCheck">
-                      I agree to the <a href="https://tandccustomer.vercel.app/" target="_blank" rel="noopener noreferrer">Terms & Conditions</a> and <a href="https://spv-seven.vercel.app/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+                      I agree to the <a href="https://tandccustomer.vercel.app/" target="_blank" rel="noopener noreferrer">Terms & Conditions</a> and <a href="https://leevon-delivery.vercel.app/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
                     </label>
                   </div>
                 </div>

@@ -6,8 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'out',
   server: {
     androidScheme: 'https',
-    url: 'https://spv-seven.vercel.app/',
-    allowNavigation: ['spv-seven.vercel.app'],
+    url: 'https://leevon-delivery.vercel.app/',
+    allowNavigation: ['leevon-delivery.vercel.app'],
     cleartext: true
   }
 };
