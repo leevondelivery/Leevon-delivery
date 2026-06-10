@@ -20,8 +20,8 @@ export const Data = [
 { id: 220, name: "Dry Fruit Malai", price: 149, restid: 1, button: "Add", type: "veg", symbol: "🟩", category: "malais", image: "/fooditems/1 (206).webp" },
 
 
-//moctails
-{ id: 221, name: "Virgin Pina Colada", price: 79, restid: 1, button: "Add", type: "veg", symbol: "🟩", category: "moctails", image: "/fooditems/1 (207).webp" },
+
+{ id: 221, name: " Pina Colada", price: 79, restid: 1, button: "Add", type: "veg", symbol: "🟩", category: "moctails", image: "/fooditems/1 (207).webp" },
 { id: 222, name: "Blue Curacao", price: 99, restid: 1, button: "Add", type: "veg", symbol: "🟩", category: "moctails", image: "/fooditems/1 (208).webp" },
 { id: 223, name: "Blood Orange", price: 109, restid: 1, button: "Add", type: "veg", symbol: "🟩", category: "moctails", image: "/fooditems/1 (209).webp" },
 { id: 224, name: "Cranberry Mojito", price: 109, restid: 1, button: "Add", type: "veg", symbol: "🟩", category: "moctails", image: "/fooditems/1 (210).webp" },
