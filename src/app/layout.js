@@ -47,6 +47,7 @@ export const viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: '#F8F5EB',
+  viewportFit: 'cover',
 };
 
 import GlobalServiceCheck from './components/GlobalServiceCheck';

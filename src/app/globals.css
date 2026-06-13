@@ -6,6 +6,25 @@ html, body {
     padding: 0;
 }
 
+body {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+
+/* Float bottom navbar above safe-area-inset-bottom on mobile devices */
+.navbar-container {
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* Adjust category sidebars for status bars / notches */
+.category-sidebar {
+    padding-top: calc(20px + env(safe-area-inset-top, 0px)) !important;
+}
+
+.category-sidebar .close-sidebar-btn {
+    top: calc(10px + env(safe-area-inset-top, 0px)) !important;
+}
+
 /* Custom Toast Styles */
 .toast-pill {
     background-color: #6BCB77;
