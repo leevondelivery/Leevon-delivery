@@ -73,6 +73,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     const [showFetchingModal, setShowFetchingModal] = useState(false);
     const [locationDenied, setLocationDenied] = useState(false);
     const [outOfZone, setOutOfZone] = useState(false);
+    const [showSettingsButton, setShowSettingsButton] = useState(false);
 
     // Location distance states
     const [roadDistances, setRoadDistances] = useState({});
@@ -143,6 +144,15 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         if (!force && hasRequestedThisMount.current) return;
         hasRequestedThisMount.current = true;
 
+        // Determine if we are running under Capacitor
+        let isNative = false;
+        try {
+            const { Capacitor } = await import('@capacitor/core');
+            isNative = Capacitor.isNativePlatform();
+        } catch (e) {
+            console.log("Capacitor core not loaded:", e);
+        }
+
         const handleSuccess = async (pos) => {
             const { latitude, longitude } = pos.coords;
             console.log("✅ Location obtained:", { latitude, longitude });
@@ -155,24 +165,29 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
             if (!isAppLoaded) {
                 setShowFetchingModal(true);
             }
-            setShowLocationModal(false);
 
             // Check if user is inside the polygon
             const isInside = isPointInPolygon({ latitude, longitude }, kurnoolPolygon);
 
             if (isInside) {
                 localStorage.setItem("isServiceAvailable", "true");
+                // Fetch distances first so they are ready
                 await fetchAllDistances(latitude, longitude);
+                
+                // Now close everything since distances are ready
+                setShowLocationModal(false);
+                setLocationDenied(false);
             } else {
                 console.warn("🚫 User is outside the service area.");
                 localStorage.setItem("isServiceAvailable", "false");
                 setOutOfZone(true);
                 setError("❌ Outside Service Area");
+                setShowLocationModal(false);
+                setLocationDenied(false);
             }
 
-            if (!isAppLoaded) {
-                setShowFetchingModal(false);
-            }
+            // Always hide fetching spinner after completion
+            setShowFetchingModal(false);
         };
 
         const handleError = (err) => {
@@ -185,9 +200,15 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                     break;
                 case 2: // POSITION_UNAVAILABLE
                     errorMsg = "⚠️ Location unavailable. Please turn on your Device Location/GPS.";
+                    if (isNative) {
+                        setShowSettingsButton(true);
+                    }
                     break;
                 case 3: // TIMEOUT
                     errorMsg = "⚠️ Location request timed out. Please retry.";
+                    if (isNative) {
+                        setShowSettingsButton(true);
+                    }
                     break;
                 default:
                     errorMsg = "⚠️ GPS access failed: " + (err.message || "Unknown error");
@@ -278,15 +299,6 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
             }
         };
 
-        // Determine if we are running under Capacitor
-        let isNative = false;
-        try {
-            const { Capacitor } = await import('@capacitor/core');
-            isNative = Capacitor.isNativePlatform();
-        } catch (e) {
-            console.log("Capacitor core not loaded:", e);
-        }
-
         if (isNative) {
             try {
                 console.log("📱 Native Capacitor Platform. Requesting Geolocation via plugin.");
@@ -299,7 +311,19 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 }
 
                 if (permissions.location === 'granted') {
-                    // Get current position natively (which prompts the system to enable GPS if disabled)
+                    // Try to request native Google Play Services GPS enablement directly in-app
+                    try {
+                        const { registerPlugin } = await import('@capacitor/core');
+                        const NativeSettings = registerPlugin('NativeSettings');
+                        await NativeSettings.requestGpsEnable();
+                        console.log("✅ Native GPS Enabled successfully or already on.");
+                    } catch (gpsError) {
+                        console.warn("⚠️ Native GPS Enable dialog failed or cancelled:", gpsError);
+                        handleError({ code: 2, message: "User denied GPS enablement" });
+                        return;
+                    }
+
+                    // Get current position natively
                     const pos = await Geolocation.getCurrentPosition({
                         enableHighAccuracy: true,
                         timeout: 20000,
@@ -335,13 +359,25 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         }
     }, [fetchAllDistances]);
 
+    // Open native Android location settings
+    const handleOpenSettings = async () => {
+        try {
+            const { registerPlugin } = await import('@capacitor/core');
+            const NativeSettings = registerPlugin('NativeSettings');
+            await NativeSettings.openLocationSettings();
+        } catch (e) {
+            console.error("Failed to open native settings:", e);
+        }
+    };
+
     // Enable location handler - DIRECT CALL to bypass any state/ref logic
     const handleEnableLocation = () => {
         // Reset all error states so we can try again cleanly
         setLocationDenied(false);
+        setShowSettingsButton(false);
         setOutOfZone(false);
         setError(null);
-        setShowLocationModal(false);
+        setShowLocationModal(true);
         setShowFetchingModal(true);
 
         // Directly call requestLocation with force=true
@@ -501,76 +537,78 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     return (
         <div className="restaurant-list-page" style={{ paddingBottom: '100px' }}>
 
-            {/* Location Modal */}
-            <Modal show={showLocationModal} centered backdrop="static" keyboard={false} size="sm" contentClassName="location-modal-content">
+            {/* Unified Location Modal */}
+            <Modal show={showLocationModal || showFetchingModal || (locationDenied && Object.keys(roadDistances).length === 0) || outOfZone} centered backdrop="static" keyboard={false} size="sm" contentClassName="location-modal-content">
                 <Modal.Body className="text-center py-4">
-                    <div className="location-modal-icon-container">
-                        <i className="fas fa-map-marker-alt location-modal-icon"></i>
-                    </div>
-                    <h5 className="location-modal-title">Location Permission Disclosure</h5>
-                    <p className="location-modal-text" style={{ fontSize: '0.85rem', textAlign: 'left', lineHeight: '1.5', margin: '15px 0', padding: '0 5px' }}>
-                        This application requires access to your device's precise location (GPS coordinates) to:
-                        <br />• <strong>Verify Service Area:</strong> Confirm if you are located within our active Kurnool City delivery boundary.
-                        <br />• <strong>Calculate Delivery Fees:</strong> Compute accurate road distance and delivery fees from the restaurant to your doorstep.
-                        <br /><br />
-                        This location data is accessed only in the foreground while you are using the app. We do not store your coordinates permanently, use them for marketing, or share them with third-party advertisers.
-                    </p>
-                    <button
-                        className="location-modal-btn primary-btn"
-                        onClick={handleEnableLocation}
-                    >
-                        🔐 Agree & Enable Location
-                    </button>
-                    {/* Skip button removed - Location is mandatory */}
-                </Modal.Body>
-            </Modal>
+                    {showFetchingModal ? (
+                        <>
+                            <div className="location-loader">
+                                <Spinner animation="border" />
+                            </div>
+                            <h5 className="location-modal-title mt-3">Fetching Location</h5>
+                            <p className="location-modal-text" style={{ fontSize: '0.85rem', margin: '15px 0' }}>
+                                Fetching location and calculating distances to restaurants...
+                            </p>
+                        </>
+                    ) : outOfZone ? (
+                        <>
+                            <div className="location-modal-icon-container danger">
+                                <i className="fas fa-map-marked-alt location-modal-icon"></i>
+                            </div>
+                            <h5 className="location-modal-title">Service Unavailable</h5>
+                            <p className="location-modal-text">
+                                Sorry, we are currently only operational in <b>Kurnool</b>.<br />
+                                You are outside our service area.
+                            </p>
+                            <button
+                                className="location-modal-btn danger-btn"
+                                onClick={() => {
+                                    window.location.reload();
+                                }}
+                            >
+                                🔄 Check Location Again
+                            </button>
+                        </>
+                    ) : (locationDenied && Object.keys(roadDistances).length === 0) ? (
+                        <>
+                            <div className="location-modal-icon-container warning">
+                                <i className="fas fa-exclamation-triangle location-modal-icon"></i>
+                            </div>
+                            <h6 className="location-modal-title">Location Access Required</h6>
+                            <p className="location-modal-text">{error || "You must enable location and be in Kurnool to use this app."}</p>
 
-            {/* Fetching Modal */}
-            <Modal show={showFetchingModal} centered backdrop="static" keyboard={false} size="sm" contentClassName="location-modal-content">
-                <Modal.Body className="text-center py-4">
-                    <div className="location-loader">
-                        <Spinner animation="border" />
-                    </div>
-                    <div className="location-modal-title mt-3">Fetching your location...</div>
-                </Modal.Body>
-            </Modal>
-
-            {/* Location Denied / Error Modal */}
-            <Modal show={locationDenied && Object.keys(roadDistances).length === 0} centered backdrop="static" keyboard={false} size="sm" contentClassName="location-modal-content">
-                <Modal.Body className="text-center py-4">
-                    <div className="location-modal-icon-container warning">
-                        <i className="fas fa-exclamation-triangle location-modal-icon"></i>
-                    </div>
-                    <h6 className="location-modal-title">Location Access Required</h6>
-                    <p className="location-modal-text">{error || "You must enable location and be in Kurnool to use this app."}</p>
-
-                    <button className="location-modal-btn primary-btn" onClick={handleEnableLocation}>
-                        📱 Retry GPS
-                    </button>
-                    {/* Dismiss button removed */}
-                </Modal.Body>
-            </Modal>
-
-            {/* Out of Zone Modal */}
-            <Modal show={outOfZone} centered backdrop="static" keyboard={false} size="sm" contentClassName="location-modal-content">
-                <Modal.Body className="text-center py-4">
-                    <div className="location-modal-icon-container danger">
-                        <i className="fas fa-map-marked-alt location-modal-icon"></i>
-                    </div>
-                    <h5 className="location-modal-title">Service Unavailable</h5>
-                    <p className="location-modal-text">
-                        Sorry, we are currently only operational in <b>Kurnool</b>.<br />
-                        You are outside our service area.
-                    </p>
-                    <button
-                        className="location-modal-btn danger-btn"
-                        onClick={() => {
-                            window.location.reload();
-                        }}
-                    >
-                        🔄 Check Location Again
-                    </button>
-                    {/* Browse Anyway button removed */}
+                            <div className="d-flex flex-column gap-2 w-100 px-3">
+                                <button className="location-modal-btn primary-btn" onClick={handleEnableLocation}>
+                                    📱 Retry GPS
+                                </button>
+                                {showSettingsButton && (
+                                    <button className="btn btn-secondary border w-100" style={{ padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: '500' }} onClick={handleOpenSettings}>
+                                        ⚙️ Open Location Settings
+                                    </button>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="location-modal-icon-container">
+                                <i className="fas fa-map-marker-alt location-modal-icon"></i>
+                            </div>
+                            <h5 className="location-modal-title">Location Permission Disclosure</h5>
+                            <p className="location-modal-text" style={{ fontSize: '0.85rem', textAlign: 'left', lineHeight: '1.5', margin: '15px 0', padding: '0 5px' }}>
+                                This application requires access to your device's precise location (GPS coordinates) to:
+                                <br />• <strong>Verify Service Area:</strong> Confirm if you are located within our active Kurnool City delivery boundary.
+                                <br />• <strong>Calculate Delivery Fees:</strong> Compute accurate road distance and delivery fees from the restaurant to your doorstep.
+                                <br /><br />
+                                This location data is accessed only in the foreground while you are using the app. We do not store your coordinates permanently, use them for marketing, or share them with third-party advertisers.
+                            </p>
+                            <button
+                                className="location-modal-btn primary-btn"
+                                onClick={handleEnableLocation}
+                            >
+                                🔐 Agree & Enable Location
+                            </button>
+                        </>
+                    )}
                 </Modal.Body>
             </Modal>
 

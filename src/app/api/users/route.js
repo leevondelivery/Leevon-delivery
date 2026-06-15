@@ -12,7 +12,7 @@ export async function POST(request) {
       const CouponCode = (await import("../../../../models/CouponCode")).default;
       const isValidCoupon = await CouponCode.findOne({ couponCode: referralCode });
       if (!isValidCoupon) {
-         return NextResponse.json({ error: "Invalid Coupon Code" }, { status: 400 });
+        return NextResponse.json({ error: "Invalid Coupon Code" }, { status: 400 });
       }
     }
 
@@ -21,14 +21,14 @@ export async function POST(request) {
     // Hash password using SHA-256
     const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
 
-    const newUser = new User({ 
-      name, 
-      email, 
-      phone, 
+    const newUser = new User({
+      name,
+      email,
+      phone,
       referralCode,
-      password: hashedPassword, 
+      password: hashedPassword,
       dateOfBirth,
-      blickstatus: blickstatus ?? true 
+      blickstatus: blickstatus ?? true
     });
     await newUser.save();
 
