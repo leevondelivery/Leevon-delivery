@@ -16,10 +16,7 @@ export async function POST(request) {
       }
     }
 
-    // Google Reviewer Bypass: If test phone number already exists, delete it first to avoid duplicate key error
-    if (phone === "9999999999") {
-      await User.deleteMany({ phone: "9999999999" });
-    }
+
 
     // Hash password using SHA-256
     const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');

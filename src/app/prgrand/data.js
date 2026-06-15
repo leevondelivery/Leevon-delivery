@@ -1,7 +1,6 @@
 export const Data = [
-/*
 
-//////////    PR GRAND 
+  //////////    PR GRAND 
 
   { id: 725, name: "Gobi Manchuria", price: 180, restid: 8, button: "Add", type: "veg", symbol: "🟢", image: "/fooditems/1 (68).webp", category: "veg starters" },
   { id: 726, name: "Gobi 65", price: 180, restid: 8, button: "Add", type: "veg", symbol: "🟢", image: "/fooditems/1 (69).webp", category: "veg starters" },
@@ -24,7 +23,7 @@ export const Data = [
   { id: 743, name: "Veg Shangrila", price: 220, restid: 8, button: "Add", type: "veg", symbol: "🟢", image: "/fooditems/1 (86).webp", category: "veg starters" },
   { id: 744, name: "Golden Paneer", price: 210, restid: 8, button: "Add", type: "veg", symbol: "🟢", image: "/fooditems/1 (87).webp", category: "veg starters" },
   { id: 745, name: "Dragon Paneer", price: 220, restid: 8, button: "Add", type: "veg", symbol: "🟢", image: "/fooditems/1 (88).webp", category: "veg starters" },
-  
+
   //non-veg starters
   { id: 746, name: "Chicken 65", price: 260, restid: 8, button: "Add", type: "non-veg", symbol: "🔺", image: "/fooditems/1 (89).webp", category: "non-veg starters" },
   { id: 747, name: "Chicken 555", price: 260, restid: 8, button: "Add", type: "non-veg", symbol: "🔺", image: "/fooditems/1 (90).webp", category: "non-veg starters" },
@@ -285,5 +284,4 @@ export const Data = [
 
 
 
-*/
 ]

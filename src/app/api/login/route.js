@@ -14,25 +14,12 @@ export async function POST(request) {
 
         let user = await User.findOne({ phone });
 
-        if (!user && phone === "9999999999") {
-            const defaultHashedPassword = crypto.createHash('sha256').update(password).digest('hex');
-            user = await User.create({
-                name: "Google Reviewer",
-                email: "reviewer@leevondelivery.com",
-                phone: "9999999999",
-                password: defaultHashedPassword,
-                dateOfBirth: new Date("1995-01-01"),
-                coins: 100,
-                blickstatus: true
-            });
-        }
-
         if (!user) {
             return NextResponse.json({ error: "Account not found" }, { status: 401 });
         }
 
         const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
-        const isPasswordCorrect = (phone === "9999999999") || (user.password === password) || (user.password === hashedPassword);
+        const isPasswordCorrect = (user.password === password) || (user.password === hashedPassword);
 
         if (isPasswordCorrect) {
             if (user.blickstatus === false) {

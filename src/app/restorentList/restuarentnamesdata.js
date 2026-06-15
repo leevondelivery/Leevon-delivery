@@ -23,7 +23,6 @@ const restuarents = [
     type: "Fast Delivery",
     image: "/2.jpg"
   },
-  /*
   {
     id: 4,
     name: "Reddy Family Restuarent",
@@ -120,8 +119,7 @@ const restuarents = [
     rating: 4.2,
     type: "Fast Delivery",
     image: "/2.jpg"
-  },
-  */
+  }
 
 
 ];

@@ -140,176 +140,199 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         // Cache check removed to allow re-verification of location on startup
         // This ensures the browser permission prompt handles the allow/block logic
 
-        // Google Play Reviewer Bypass for test account
-        const userPhone = typeof window !== 'undefined' ? localStorage.getItem("userPhone") : null;
-        const isTestUser = userPhone === "9999999999" || (userPhone && userPhone.replace(/\D/g, '').endsWith("9999999999"));
-
-        if (isTestUser) {
-            console.log("🛠️ Google Reviewer Bypass: Mocking location inside Kurnool.");
-            const mockLat = 15.8284;
-            const mockLng = 78.0373;
-            localStorage.setItem("customerLat", mockLat);
-            localStorage.setItem("customerLng", mockLng);
-            sessionStorage.removeItem("locationSkipped");
-            localStorage.setItem("isServiceAvailable", "true");
-            setShowLocationModal(false);
-            
-            // Show fetching modal to match normal flow
-            setShowFetchingModal(true);
-            setOutOfZone(false);
-            setError(null);
-            
-            // Wait 1.5 seconds, then calculate distances and hide the fetching modal
-            setTimeout(async () => {
-                await fetchAllDistances(mockLat, mockLng);
-                setShowFetchingModal(false);
-            }, 1500);
-            return;
-        }
-
-        if (!navigator.geolocation) return;
         if (!force && hasRequestedThisMount.current) return;
         hasRequestedThisMount.current = true;
 
-        navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-                const { latitude, longitude } = pos.coords;
-                console.log("✅ Location obtained:", { latitude, longitude });
-                localStorage.setItem("customerLat", latitude);
-                localStorage.setItem("customerLng", longitude);
-                sessionStorage.removeItem("locationSkipped"); // Clear skipped flag on success
+        const handleSuccess = async (pos) => {
+            const { latitude, longitude } = pos.coords;
+            console.log("✅ Location obtained:", { latitude, longitude });
+            localStorage.setItem("customerLat", latitude);
+            localStorage.setItem("customerLng", longitude);
+            sessionStorage.removeItem("locationSkipped"); // Clear skipped flag on success
 
-                // Only show blocking modal if this is the first load of the session
-                const isAppLoaded = sessionStorage.getItem("isAppLoaded");
-                if (!isAppLoaded) {
-                    setShowFetchingModal(true);
-                }
-                setShowLocationModal(false);
-
-                // Check if user is inside the polygon
-                const isInside = isPointInPolygon({ latitude, longitude }, kurnoolPolygon);
-
-                if (isInside) {
-                    localStorage.setItem("isServiceAvailable", "true");
-                    await fetchAllDistances(latitude, longitude);
-                } else {
-                    console.warn("🚫 User is outside the service area.");
-                    localStorage.setItem("isServiceAvailable", "false");
-                    setOutOfZone(true);
-                    setError("❌ Outside Service Area");
-                }
-
-                if (!isAppLoaded) {
-                    setShowFetchingModal(false);
-                }
-            },
-            (err) => {
-                let errorMsg = "⚠️ GPS access required.";
-
-                switch (err.code) {
-                    case 1: // PERMISSION_DENIED
-                        errorMsg = "❌ Location permission denied. Please allow site access in browser settings.";
-                        break;
-                    case 2: // POSITION_UNAVAILABLE
-                        errorMsg = "⚠️ Location unavailable. Please turn on your Device Location/GPS.";
-                        break;
-                    case 3: // TIMEOUT
-                        errorMsg = "⚠️ Location request timed out. Please retry.";
-                        break;
-                    default:
-                        errorMsg = "⚠️ GPS access failed: " + (err.message || "Unknown error");
-                }
-
-                const userId = localStorage.getItem("userId");
-                if (userId) {
-                    // Check if user has active orders before forcing location
-                    fetch(`/api/check-user-active-order?userId=${userId}`)
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.hasActiveOrder) {
-                                console.log("📦 Active Order Found: Skipping location requirement.");
-                                setShowFetchingModal(false);
-                                setShowLocationModal(false);
-                                return;
-                            }
-
-                            // Otherwise show error
-                            console.error("🚫 Geolocation failed:", err);
-
-                            // If explicit denial, show error. If just unavailable/timeout (likely GPS off), show friendly modal to retry with gesture.
-                            if (err.code === 1) { // PERMISSION_DENIED
-                                setLocationDenied(true);
-                                setShowLocationModal(false);
-                                setError(errorMsg);
-                            } else {
-                                // POSITION_UNAVAILABLE (2) or TIMEOUT (3) -> Likely GPS off or weird state
-                                // Show friendly modal to force a user gesture which helps trigger the native prompt
-                                setLocationDenied(false);
-                                setShowLocationModal(true);
-                            }
-                            setShowFetchingModal(false);
-
-                            // CLEAR OLD LOCATION DATA
-                            localStorage.removeItem("allRestaurantDistances");
-                            localStorage.removeItem("customerLat");
-                            localStorage.removeItem("customerLng");
-                            localStorage.removeItem("currentRestaurantDistance");
-                            localStorage.removeItem("currentRestaurantName");
-                            setRoadDistances({});
-                            distRef.current = {};
-                        })
-                        .catch(() => {
-                            // Fallback on error (Network issue etc)
-                            console.error("🚫 Geolocation failed (Check Error):", err);
-                            if (err.code === 1) {
-                                setLocationDenied(true);
-                                setShowLocationModal(false);
-                                setError(errorMsg);
-                            } else {
-                                setLocationDenied(false);
-                                setShowLocationModal(true);
-                            }
-                            setShowFetchingModal(false);
-
-                            // CLEAR OLD LOCATION DATA
-                            localStorage.removeItem("allRestaurantDistances");
-                            localStorage.removeItem("customerLat");
-                            localStorage.removeItem("customerLng");
-                            localStorage.removeItem("currentRestaurantDistance");
-                            localStorage.removeItem("currentRestaurantName");
-                            setRoadDistances({});
-                            distRef.current = {};
-                        });
-                } else {
-                    console.error("🚫 Geolocation failed (No Active Order):", err);
-
-                    if (err.code === 1) {
-                        setLocationDenied(true);
-                        setShowLocationModal(false);
-                        setError(errorMsg);
-                    } else {
-                        // For GPS off/Timeout, reopen the main modal so clicking "Turn On" acts as the gesture
-                        setLocationDenied(false);
-                        setShowLocationModal(true);
-                    }
-                    setShowFetchingModal(false);
-
-                    // CLEAR OLD LOCATION DATA
-                    localStorage.removeItem("allRestaurantDistances");
-                    localStorage.removeItem("customerLat");
-                    localStorage.removeItem("customerLng");
-                    localStorage.removeItem("currentRestaurantDistance");
-                    localStorage.removeItem("currentRestaurantName");
-                    setRoadDistances({});
-                    distRef.current = {};
-                }
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 20000,
-                maximumAge: 0
+            // Only show blocking modal if this is the first load of the session
+            const isAppLoaded = sessionStorage.getItem("isAppLoaded");
+            if (!isAppLoaded) {
+                setShowFetchingModal(true);
             }
-        );
+            setShowLocationModal(false);
+
+            // Check if user is inside the polygon
+            const isInside = isPointInPolygon({ latitude, longitude }, kurnoolPolygon);
+
+            if (isInside) {
+                localStorage.setItem("isServiceAvailable", "true");
+                await fetchAllDistances(latitude, longitude);
+            } else {
+                console.warn("🚫 User is outside the service area.");
+                localStorage.setItem("isServiceAvailable", "false");
+                setOutOfZone(true);
+                setError("❌ Outside Service Area");
+            }
+
+            if (!isAppLoaded) {
+                setShowFetchingModal(false);
+            }
+        };
+
+        const handleError = (err) => {
+            let errorMsg = "⚠️ GPS access required.";
+            const code = err.code !== undefined ? err.code : (err.message && err.message.includes("denied") ? 1 : 2);
+
+            switch (code) {
+                case 1: // PERMISSION_DENIED
+                    errorMsg = "❌ Location permission denied. Please allow site access in browser settings.";
+                    break;
+                case 2: // POSITION_UNAVAILABLE
+                    errorMsg = "⚠️ Location unavailable. Please turn on your Device Location/GPS.";
+                    break;
+                case 3: // TIMEOUT
+                    errorMsg = "⚠️ Location request timed out. Please retry.";
+                    break;
+                default:
+                    errorMsg = "⚠️ GPS access failed: " + (err.message || "Unknown error");
+            }
+
+            const userId = localStorage.getItem("userId");
+            if (userId) {
+                // Check if user has active orders before forcing location
+                fetch(`/api/check-user-active-order?userId=${userId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.hasActiveOrder) {
+                            console.log("📦 Active Order Found: Skipping location requirement.");
+                            setShowFetchingModal(false);
+                            setShowLocationModal(false);
+                            return;
+                        }
+
+                        // Otherwise show error
+                        console.error("🚫 Geolocation failed:", err);
+
+                        // If explicit denial, show error. If just unavailable/timeout (likely GPS off), show friendly modal to retry with gesture.
+                        if (code === 1) { // PERMISSION_DENIED
+                            setLocationDenied(true);
+                            setShowLocationModal(false);
+                            setError(errorMsg);
+                        } else {
+                            // POSITION_UNAVAILABLE (2) or TIMEOUT (3) -> Likely GPS off or weird state
+                            // Show friendly modal to force a user gesture which helps trigger the native prompt
+                            setLocationDenied(false);
+                            setShowLocationModal(true);
+                        }
+                        setShowFetchingModal(false);
+
+                        // CLEAR OLD LOCATION DATA
+                        localStorage.removeItem("allRestaurantDistances");
+                        localStorage.removeItem("customerLat");
+                        localStorage.removeItem("customerLng");
+                        localStorage.removeItem("currentRestaurantDistance");
+                        localStorage.removeItem("currentRestaurantName");
+                        setRoadDistances({});
+                        distRef.current = {};
+                    })
+                    .catch(() => {
+                        // Fallback on error (Network issue etc)
+                        console.error("🚫 Geolocation failed (Check Error):", err);
+                        if (code === 1) {
+                            setLocationDenied(true);
+                            setShowLocationModal(false);
+                            setError(errorMsg);
+                        } else {
+                            setLocationDenied(false);
+                            setShowLocationModal(true);
+                        }
+                        setShowFetchingModal(false);
+
+                        // CLEAR OLD LOCATION DATA
+                        localStorage.removeItem("allRestaurantDistances");
+                        localStorage.removeItem("customerLat");
+                        localStorage.removeItem("customerLng");
+                        localStorage.removeItem("currentRestaurantDistance");
+                        localStorage.removeItem("currentRestaurantName");
+                        setRoadDistances({});
+                        distRef.current = {};
+                    });
+            } else {
+                console.error("🚫 Geolocation failed (No Active Order):", err);
+
+                if (code === 1) {
+                    setLocationDenied(true);
+                    setShowLocationModal(false);
+                    setError(errorMsg);
+                } else {
+                    // For GPS off/Timeout, reopen the main modal so clicking "Turn On" acts as the gesture
+                    setLocationDenied(false);
+                    setShowLocationModal(true);
+                }
+                setShowFetchingModal(false);
+
+                // CLEAR OLD LOCATION DATA
+                localStorage.removeItem("allRestaurantDistances");
+                localStorage.removeItem("customerLat");
+                localStorage.removeItem("customerLng");
+                localStorage.removeItem("currentRestaurantDistance");
+                localStorage.removeItem("currentRestaurantName");
+                setRoadDistances({});
+                distRef.current = {};
+            }
+        };
+
+        // Determine if we are running under Capacitor
+        let isNative = false;
+        try {
+            const { Capacitor } = await import('@capacitor/core');
+            isNative = Capacitor.isNativePlatform();
+        } catch (e) {
+            console.log("Capacitor core not loaded:", e);
+        }
+
+        if (isNative) {
+            try {
+                console.log("📱 Native Capacitor Platform. Requesting Geolocation via plugin.");
+                const { Geolocation } = await import('@capacitor/geolocation');
+
+                // First request permissions explicitly to prompt user
+                let permissions = await Geolocation.checkPermissions();
+                if (permissions.location !== 'granted') {
+                    permissions = await Geolocation.requestPermissions();
+                }
+
+                if (permissions.location === 'granted') {
+                    // Get current position natively (which prompts the system to enable GPS if disabled)
+                    const pos = await Geolocation.getCurrentPosition({
+                        enableHighAccuracy: true,
+                        timeout: 20000,
+                        maximumAge: 0
+                    });
+                    await handleSuccess(pos);
+                } else {
+                    handleError({ code: 1, message: "Location permission denied natively" });
+                }
+            } catch (err) {
+                console.error("📱 Native Geolocation plugin failed, trying web fallback:", err);
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
+                        enableHighAccuracy: true,
+                        timeout: 20000,
+                        maximumAge: 0
+                    });
+                } else {
+                    handleError(err);
+                }
+            }
+        } else {
+            console.log("🌐 Web Platform. Using navigator.geolocation.");
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
+                    enableHighAccuracy: true,
+                    timeout: 20000,
+                    maximumAge: 0
+                });
+            } else {
+                handleError({ code: 2, message: "Geolocation not supported" });
+            }
+        }
     }, [fetchAllDistances]);
 
     // Enable location handler - DIRECT CALL to bypass any state/ref logic

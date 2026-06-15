@@ -29,7 +29,7 @@ export const Data = [
 { id: 226, name: "Portuguese Lemonade (Spicy)", price: 119, restid: 1, button: "Add", type: "veg", symbol: "🟩", category: "moctails", image: "/fooditems/1 (212).webp" },
 { id: 227, name: "Classic Lemonade", price: 49, restid: 1, button: "Add", type: "veg", symbol: "🟩", category: "moctails", image: "/fooditems/1 (213).webp" },
 
-/*
+
 //milk shakes
 { id: 228, name: "Butterscotch Milkshake", price: 119, restid: 1, button: "Add", type: "veg", symbol: "🟩", category: "milk shakes", image: "/fooditems/1 (214).webp" },
 { id: 229, name: "Oreo Milkshake", price: 139, restid: 1, button: "Add", type: "veg", symbol: "🟩", category: "milk shakes", image: "/fooditems/1 (215).webp" },
@@ -127,5 +127,5 @@ export const Data = [
 { id: 299, name: "Fried Paneer Momos", price: 149, restid: 1, button: "Add", type: "veg", symbol: "🟩", category: "momos", image: "/fooditems/1 (285).webp" },
 { id: 300, name: "Steamed Chicken Momos", price: 139, restid: 1, button: "Add", type: "non-veg", symbol: "🔺", category: "momos", image: "/fooditems/1 (286).webp" },
 { id: 301, name: "Fried Chicken Momos", price: 149, restid: 1, button: "Add", type: "non-veg", symbol: "🔺", category: "momos", image: "/fooditems/1 (287).webp" }
-*/
+
 ]

@@ -409,7 +409,7 @@ export default function Cart() {
         prefill: {
           name: userName,
           email: userEmail,
-          contact: userPhone || "9999999999"
+          contact: userPhone || ""
         },
         theme: { color: "#3399cc" },
         modal: {
