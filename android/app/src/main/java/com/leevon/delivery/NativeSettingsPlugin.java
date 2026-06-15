@@ -1,12 +1,15 @@
 package com.leevon.delivery;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.location.LocationManager;
 import android.provider.Settings;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.IntentSenderRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
+import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -54,6 +57,29 @@ public class NativeSettingsPlugin extends Plugin {
             call.resolve();
         } catch (Exception e) {
             call.reject("Could not open location settings", e);
+        }
+    }
+
+    @PluginMethod
+    public void isLocationEnabled(PluginCall call) {
+        try {
+            LocationManager lm = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+            boolean gpsEnabled = false;
+            boolean networkEnabled = false;
+
+            try {
+                gpsEnabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+            } catch (Exception e) {}
+
+            try {
+                networkEnabled = lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+            } catch (Exception e) {}
+
+            JSObject result = new JSObject();
+            result.put("enabled", gpsEnabled || networkEnabled);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Could not check location status", e);
         }
     }
 

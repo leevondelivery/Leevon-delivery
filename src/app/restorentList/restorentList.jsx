@@ -71,7 +71,6 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     // Location modal states
     const [showLocationModal, setShowLocationModal] = useState(false);
     const [showFetchingModal, setShowFetchingModal] = useState(false);
-    const [locationDenied, setLocationDenied] = useState(false);
     const [outOfZone, setOutOfZone] = useState(false);
     const [showSettingsButton, setShowSettingsButton] = useState(false);
 
@@ -176,14 +175,12 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 
                 // Now close everything since distances are ready
                 setShowLocationModal(false);
-                setLocationDenied(false);
             } else {
                 console.warn("🚫 User is outside the service area.");
                 localStorage.setItem("isServiceAvailable", "false");
                 setOutOfZone(true);
                 setError("❌ Outside Service Area");
                 setShowLocationModal(false);
-                setLocationDenied(false);
             }
 
             // Always hide fetching spinner after completion
@@ -232,13 +229,11 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
 
                         // If explicit denial, show error. If just unavailable/timeout (likely GPS off), show friendly modal to retry with gesture.
                         if (code === 1) { // PERMISSION_DENIED
-                            setLocationDenied(true);
                             setShowLocationModal(false);
                             setError(errorMsg);
                         } else {
                             // POSITION_UNAVAILABLE (2) or TIMEOUT (3) -> Likely GPS off or weird state
                             // Show friendly modal to force a user gesture which helps trigger the native prompt
-                            setLocationDenied(false);
                             setShowLocationModal(true);
                         }
                         setShowFetchingModal(false);
@@ -256,11 +251,9 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                         // Fallback on error (Network issue etc)
                         console.error("🚫 Geolocation failed (Check Error):", err);
                         if (code === 1) {
-                            setLocationDenied(true);
                             setShowLocationModal(false);
                             setError(errorMsg);
                         } else {
-                            setLocationDenied(false);
                             setShowLocationModal(true);
                         }
                         setShowFetchingModal(false);
@@ -278,12 +271,10 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 console.error("🚫 Geolocation failed (No Active Order):", err);
 
                 if (code === 1) {
-                    setLocationDenied(true);
                     setShowLocationModal(false);
                     setError(errorMsg);
                 } else {
                     // For GPS off/Timeout, reopen the main modal so clicking "Turn On" acts as the gesture
-                    setLocationDenied(false);
                     setShowLocationModal(true);
                 }
                 setShowFetchingModal(false);
@@ -311,24 +302,41 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 }
 
                 if (permissions.location === 'granted') {
-                    // Try to get position natively, catch failure if GPS is off
+                    // 1. Immediately check if GPS/Device location services are enabled
+                    let gpsEnabled = true;
                     try {
-                        const pos = await Geolocation.getCurrentPosition({
-                            enableHighAccuracy: true,
-                            timeout: 7000, // Faster timeout if GPS is disabled
-                            maximumAge: 0
-                        });
-                        await handleSuccess(pos);
-                    } catch (gpsError) {
-                        console.warn("⚠️ GPS appears to be disabled, redirecting to settings:", gpsError);
+                        const { registerPlugin } = await import('@capacitor/core');
+                        const NativeSettings = registerPlugin('NativeSettings');
+                        const status = await NativeSettings.isLocationEnabled();
+                        gpsEnabled = status.enabled;
+                    } catch (settingsError) {
+                        console.warn("⚠️ Failed to check if GPS is enabled, assuming enabled:", settingsError);
+                    }
+
+                    if (!gpsEnabled) {
+                        console.log("🚫 GPS is turned OFF. Redirecting to settings immediately.");
                         try {
                             const { registerPlugin } = await import('@capacitor/core');
                             const NativeSettings = registerPlugin('NativeSettings');
                             await NativeSettings.openLocationSettings();
-                        } catch (settingsError) {
-                            console.error("Failed to open location settings:", settingsError);
+                        } catch (openError) {
+                            console.error("Failed to open location settings:", openError);
                         }
                         handleError({ code: 2, message: "⚠️ Location unavailable. Please enable your Location/GPS settings." });
+                        return;
+                    }
+
+                    // 2. GPS is ON. Get current position natively.
+                    try {
+                        const pos = await Geolocation.getCurrentPosition({
+                            enableHighAccuracy: true,
+                            timeout: 15000, // Safe long timeout because GPS is active
+                            maximumAge: 0
+                        });
+                        await handleSuccess(pos);
+                    } catch (gpsError) {
+                        console.error("⚠️ Failed to get position even with GPS ON:", gpsError);
+                        handleError({ code: 2, message: "⚠️ Location unavailable. Please try again." });
                     }
                 } else {
                     handleError({ code: 1, message: "Location permission denied natively" });
@@ -373,7 +381,6 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     // Enable location handler - DIRECT CALL to bypass any state/ref logic
     const handleEnableLocation = () => {
         // Reset all error states so we can try again cleanly
-        setLocationDenied(false);
         setShowSettingsButton(false);
         setOutOfZone(false);
         setError(null);
@@ -563,7 +570,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         <div className="restaurant-list-page" style={{ paddingBottom: '100px' }}>
 
             {/* Unified Location Modal */}
-            <Modal show={showLocationModal || showFetchingModal || (locationDenied && Object.keys(roadDistances).length === 0) || outOfZone} centered backdrop="static" keyboard={false} size="sm" contentClassName="location-modal-content">
+            <Modal show={showLocationModal || showFetchingModal || (error && Object.keys(roadDistances).length === 0) || outOfZone} centered backdrop="static" keyboard={false} size="sm" contentClassName="location-modal-content">
                 <Modal.Body className="text-center py-4">
                     {showFetchingModal ? (
                         <>
@@ -594,7 +601,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                                 🔄 Check Location Again
                             </button>
                         </>
-                    ) : (locationDenied && Object.keys(roadDistances).length === 0) ? (
+                    ) : (error && Object.keys(roadDistances).length === 0) ? (
                         <>
                             <div className="location-modal-icon-container warning">
                                 <i className="fas fa-exclamation-triangle location-modal-icon"></i>
