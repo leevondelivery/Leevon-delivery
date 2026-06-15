@@ -136,7 +136,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     }, []);
 
     // Request location function
-    const requestLocation = useCallback((force = false) => {
+    const requestLocation = useCallback(async (force = false) => {
         // Cache check removed to allow re-verification of location on startup
         // This ensures the browser permission prompt handles the allow/block logic
 
@@ -244,7 +244,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                         }
                         setShowFetchingModal(false);
 
-                        // CLEAR OLD LOCATION DATA
+    
                         localStorage.removeItem("allRestaurantDistances");
                         localStorage.removeItem("customerLat");
                         localStorage.removeItem("customerLng");
