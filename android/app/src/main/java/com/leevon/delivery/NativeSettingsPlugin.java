@@ -4,10 +4,12 @@ import android.app.Activity;
 import android.content.Intent;
 import android.provider.Settings;
 import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.IntentSenderRequest;
+import androidx.activity.result.contract.ActivityResultContracts;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
-import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.LocationRequest;
@@ -19,6 +21,29 @@ import com.google.android.gms.tasks.Task;
 
 @CapacitorPlugin(name = "NativeSettings")
 public class NativeSettingsPlugin extends Plugin {
+
+    private ActivityResultLauncher<IntentSenderRequest> gpsResolutionLauncher;
+    private String lastCallbackId;
+
+    @Override
+    public void load() {
+        gpsResolutionLauncher = getActivity().registerForActivityResult(
+            new ActivityResultContracts.StartIntentSenderForResult(),
+            result -> {
+                if (lastCallbackId != null) {
+                    PluginCall savedCall = bridge.getSavedCall(lastCallbackId);
+                    if (savedCall != null) {
+                        if (result.getResultCode() == Activity.RESULT_OK) {
+                            savedCall.resolve();
+                        } else {
+                            savedCall.reject("User cancelled GPS enablement");
+                        }
+                        bridge.releaseCall(savedCall);
+                    }
+                }
+            }
+        );
+    }
 
     @PluginMethod
     public void openLocationSettings(PluginCall call) {
@@ -58,8 +83,18 @@ public class NativeSettingsPlugin extends Plugin {
                     if (e instanceof ResolvableApiException) {
                         try {
                             ResolvableApiException resolvable = (ResolvableApiException) e;
-                            // Launch the native Google Play Services dialog using Capacitor's startActivityForResult
-                            startActivityForResult(call, resolvable.getResolution().getIntentSender(), "resolveGpsCallback");
+                            
+                            // Save the call to retrieve it in the launcher callback
+                            lastCallbackId = call.getCallbackId();
+                            bridge.saveCall(call);
+                            
+                            // Create IntentSenderRequest using AndroidX builder
+                            IntentSenderRequest intentSenderRequest = new IntentSenderRequest.Builder(
+                                resolvable.getResolution().getIntentSender()
+                            ).build();
+                            
+                            // Launch resolution dialog
+                            gpsResolutionLauncher.launch(intentSenderRequest);
                         } catch (Exception sendEx) {
                             call.reject("Failed to show GPS enable dialog", sendEx);
                         }
@@ -69,14 +104,5 @@ public class NativeSettingsPlugin extends Plugin {
                 });
             }
         });
-    }
-
-    @ActivityCallback
-    private void resolveGpsCallback(PluginCall call, ActivityResult result) {
-        if (result.getResultCode() == Activity.RESULT_OK) {
-            call.resolve();
-        } else {
-            call.reject("User cancelled GPS enablement");
-        }
     }
 }

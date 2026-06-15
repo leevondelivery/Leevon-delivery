@@ -311,25 +311,25 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 }
 
                 if (permissions.location === 'granted') {
-                    // Try to request native Google Play Services GPS enablement directly in-app
+                    // Try to get position natively, catch failure if GPS is off
                     try {
-                        const { registerPlugin } = await import('@capacitor/core');
-                        const NativeSettings = registerPlugin('NativeSettings');
-                        await NativeSettings.requestGpsEnable();
-                        console.log("✅ Native GPS Enabled successfully or already on.");
+                        const pos = await Geolocation.getCurrentPosition({
+                            enableHighAccuracy: true,
+                            timeout: 7000, // Faster timeout if GPS is disabled
+                            maximumAge: 0
+                        });
+                        await handleSuccess(pos);
                     } catch (gpsError) {
-                        console.warn("⚠️ Native GPS Enable dialog failed or cancelled:", gpsError);
-                        handleError({ code: 2, message: "User denied GPS enablement" });
-                        return;
+                        console.warn("⚠️ GPS appears to be disabled, redirecting to settings:", gpsError);
+                        try {
+                            const { registerPlugin } = await import('@capacitor/core');
+                            const NativeSettings = registerPlugin('NativeSettings');
+                            await NativeSettings.openLocationSettings();
+                        } catch (settingsError) {
+                            console.error("Failed to open location settings:", settingsError);
+                        }
+                        handleError({ code: 2, message: "⚠️ Location unavailable. Please enable your Location/GPS settings." });
                     }
-
-                    // Get current position natively
-                    const pos = await Geolocation.getCurrentPosition({
-                        enableHighAccuracy: true,
-                        timeout: 20000,
-                        maximumAge: 0
-                    });
-                    await handleSuccess(pos);
                 } else {
                     handleError({ code: 1, message: "Location permission denied natively" });
                 }
@@ -338,7 +338,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
                         enableHighAccuracy: true,
-                        timeout: 20000,
+                        timeout: 7000,
                         maximumAge: 0
                     });
                 } else {
@@ -465,6 +465,31 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
 
         return () => clearInterval(intervalId);
     }, [dispatch, router]);
+
+    // Auto-retry location check when window/app gains focus (e.g. returning from Settings)
+    useEffect(() => {
+        const handleFocus = () => {
+            const isAppLoaded = sessionStorage.getItem("isAppLoaded");
+            const locationSkipped = sessionStorage.getItem("locationSkipped");
+            if (!isAppLoaded && !locationSkipped) {
+                console.log("🔄 App refocused/visible: Retrying location request.");
+                requestLocation();
+            }
+        };
+
+        window.addEventListener("focus", handleFocus);
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                handleFocus();
+            }
+        };
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener("focus", handleFocus);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [requestLocation]);
 
 
     const proceedToRoute = (name, distance) => {
