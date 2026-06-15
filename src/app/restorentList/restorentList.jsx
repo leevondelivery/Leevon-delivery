@@ -211,6 +211,23 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                     errorMsg = "⚠️ GPS access failed: " + (err.message || "Unknown error");
             }
 
+            const clearOldLocation = () => {
+                localStorage.removeItem("allRestaurantDistances");
+                localStorage.removeItem("customerLat");
+                localStorage.removeItem("customerLng");
+                localStorage.removeItem("currentRestaurantDistance");
+                localStorage.removeItem("currentRestaurantName");
+                setRoadDistances({});
+                distRef.current = {};
+            };
+
+            const triggerErrorState = () => {
+                setError(errorMsg);
+                setShowLocationModal(true);
+                setShowFetchingModal(false);
+                clearOldLocation();
+            };
+
             const userId = localStorage.getItem("userId");
             if (userId) {
                 // Check if user has active orders before forcing location
@@ -221,72 +238,16 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                             console.log("📦 Active Order Found: Skipping location requirement.");
                             setShowFetchingModal(false);
                             setShowLocationModal(false);
-                            return;
-                        }
-
-                        // Otherwise show error
-                        console.error("🚫 Geolocation failed:", err);
-
-                        // If explicit denial, show error. If just unavailable/timeout (likely GPS off), show friendly modal to retry with gesture.
-                        if (code === 1) { // PERMISSION_DENIED
-                            setShowLocationModal(false);
-                            setError(errorMsg);
+                            setError(null);
                         } else {
-                            // POSITION_UNAVAILABLE (2) or TIMEOUT (3) -> Likely GPS off or weird state
-                            // Show friendly modal to force a user gesture which helps trigger the native prompt
-                            setShowLocationModal(true);
+                            triggerErrorState();
                         }
-                        setShowFetchingModal(false);
-
-                        // CLEAR OLD LOCATION DATA
-                        localStorage.removeItem("allRestaurantDistances");
-                        localStorage.removeItem("customerLat");
-                        localStorage.removeItem("customerLng");
-                        localStorage.removeItem("currentRestaurantDistance");
-                        localStorage.removeItem("currentRestaurantName");
-                        setRoadDistances({});
-                        distRef.current = {};
                     })
                     .catch(() => {
-                        // Fallback on error (Network issue etc)
-                        console.error("🚫 Geolocation failed (Check Error):", err);
-                        if (code === 1) {
-                            setShowLocationModal(false);
-                            setError(errorMsg);
-                        } else {
-                            setShowLocationModal(true);
-                        }
-                        setShowFetchingModal(false);
-
-    
-                        localStorage.removeItem("allRestaurantDistances");
-                        localStorage.removeItem("customerLat");
-                        localStorage.removeItem("customerLng");
-                        localStorage.removeItem("currentRestaurantDistance");
-                        localStorage.removeItem("currentRestaurantName");
-                        setRoadDistances({});
-                        distRef.current = {};
+                        triggerErrorState();
                     });
             } else {
-                console.error("🚫 Geolocation failed (No Active Order):", err);
-
-                if (code === 1) {
-                    setShowLocationModal(false);
-                    setError(errorMsg);
-                } else {
-                    // For GPS off/Timeout, reopen the main modal so clicking "Turn On" acts as the gesture
-                    setShowLocationModal(true);
-                }
-                setShowFetchingModal(false);
-
-                // CLEAR OLD LOCATION DATA
-                localStorage.removeItem("allRestaurantDistances");
-                localStorage.removeItem("customerLat");
-                localStorage.removeItem("customerLng");
-                localStorage.removeItem("currentRestaurantDistance");
-                localStorage.removeItem("currentRestaurantName");
-                setRoadDistances({});
-                distRef.current = {};
+                triggerErrorState();
             }
         };
 
@@ -302,6 +263,17 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 }
 
                 if (permissions.location === 'granted') {
+                    // Try to enable GPS natively first using our custom plugin
+                    try {
+                        const { registerPlugin } = await import('@capacitor/core');
+                        const NativeSettings = registerPlugin('NativeSettings');
+                        console.log("📱 Attempting native GPS activation...");
+                        await NativeSettings.requestGpsEnable();
+                        console.log("✅ Native GPS activation successful or already enabled.");
+                    } catch (gpsEnableErr) {
+                        console.warn("⚠️ Native GPS activation failed/cancelled:", gpsEnableErr);
+                    }
+
                     // Use a short 3s timeout - if GPS is off it will fail fast
                     try {
                         const pos = await Geolocation.getCurrentPosition({
@@ -347,10 +319,10 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
             const NativeSettings = registerPlugin('NativeSettings');
             await NativeSettings.openLocationSettings();
         } catch (e) {
-            console.warn("Native settings plugin failed, trying intent URL:", e);
+            console.warn("Native settings plugin failed, trying app-settings deep link:", e);
             // Fallback: open Android location settings via deep link
             try {
-                window.open('https://leevon-delivery.vercel.app/', '_system');
+                window.open('app-settings:', '_system');
             } catch (e2) {
                 console.error("All settings open methods failed:", e2);
             }
@@ -549,7 +521,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         <div className="restaurant-list-page" style={{ paddingBottom: '100px' }}>
 
             {/* Unified Location Modal */}
-            <Modal show={showLocationModal || showFetchingModal || (error && Object.keys(roadDistances).length === 0) || outOfZone} centered backdrop="static" keyboard={false} size="sm" contentClassName="location-modal-content">
+            <Modal show={showLocationModal || showFetchingModal || error || outOfZone} centered backdrop="static" keyboard={false} size="sm" contentClassName="location-modal-content">
                 <Modal.Body className="text-center py-4">
                     {showFetchingModal ? (
                         <>
@@ -580,7 +552,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                                 🔄 Check Location Again
                             </button>
                         </>
-                    ) : (error && Object.keys(roadDistances).length === 0) ? (
+                    ) : error ? (
                         <>
                             <div className="location-modal-icon-container warning">
                                 <i className="fas fa-exclamation-triangle location-modal-icon"></i>
