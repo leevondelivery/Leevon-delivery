@@ -295,63 +295,35 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 console.log("📱 Native Capacitor Platform. Requesting Geolocation via plugin.");
                 const { Geolocation } = await import('@capacitor/geolocation');
 
-                // First request permissions explicitly to prompt user
+                // Request permissions first
                 let permissions = await Geolocation.checkPermissions();
                 if (permissions.location !== 'granted') {
                     permissions = await Geolocation.requestPermissions();
                 }
 
                 if (permissions.location === 'granted') {
-                    // 1. Immediately check if GPS/Device location services are enabled
-                    let gpsEnabled = true;
-                    try {
-                        const { registerPlugin } = await import('@capacitor/core');
-                        const NativeSettings = registerPlugin('NativeSettings');
-                        const status = await NativeSettings.isLocationEnabled();
-                        gpsEnabled = status.enabled;
-                    } catch (settingsError) {
-                        console.warn("⚠️ Failed to check if GPS is enabled, assuming enabled:", settingsError);
-                    }
-
-                    if (!gpsEnabled) {
-                        console.log("🚫 GPS is turned OFF. Redirecting to settings immediately.");
-                        try {
-                            const { registerPlugin } = await import('@capacitor/core');
-                            const NativeSettings = registerPlugin('NativeSettings');
-                            await NativeSettings.openLocationSettings();
-                        } catch (openError) {
-                            console.error("Failed to open location settings:", openError);
-                        }
-                        handleError({ code: 2, message: "⚠️ Location unavailable. Please enable your Location/GPS settings." });
-                        return;
-                    }
-
-                    // 2. GPS is ON. Get current position natively.
+                    // Use a short 3s timeout - if GPS is off it will fail fast
                     try {
                         const pos = await Geolocation.getCurrentPosition({
                             enableHighAccuracy: true,
-                            timeout: 15000, // Safe long timeout because GPS is active
+                            timeout: 3000,
                             maximumAge: 0
                         });
                         await handleSuccess(pos);
-                    } catch (gpsError) {
-                        console.error("⚠️ Failed to get position even with GPS ON:", gpsError);
-                        handleError({ code: 2, message: "⚠️ Location unavailable. Please try again." });
+                    } catch (gpsErr) {
+                        // GPS is off or unavailable - show error with settings button
+                        console.warn("🚫 GPS is off or unavailable:", gpsErr);
+                        setShowSettingsButton(true);
+                        handleError({ code: 2, message: "⚠️ Device Location is OFF. Please enable GPS in Settings and retry." });
                     }
                 } else {
-                    handleError({ code: 1, message: "Location permission denied natively" });
+                    handleError({ code: 1, message: "Location permission denied." });
                 }
             } catch (err) {
-                console.error("📱 Native Geolocation plugin failed, trying web fallback:", err);
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
-                        enableHighAccuracy: true,
-                        timeout: 7000,
-                        maximumAge: 0
-                    });
-                } else {
-                    handleError(err);
-                }
+                console.error("📱 Capacitor Geolocation failed, using browser fallback:", err);
+                navigator.geolocation
+                    ? navigator.geolocation.getCurrentPosition(handleSuccess, handleError, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 })
+                    : handleError({ code: 2, message: "Geolocation not supported" });
             }
         } else {
             console.log("🌐 Web Platform. Using navigator.geolocation.");
@@ -370,11 +342,18 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     // Open native Android location settings
     const handleOpenSettings = async () => {
         try {
+            // Try the custom native plugin first
             const { registerPlugin } = await import('@capacitor/core');
             const NativeSettings = registerPlugin('NativeSettings');
             await NativeSettings.openLocationSettings();
         } catch (e) {
-            console.error("Failed to open native settings:", e);
+            console.warn("Native settings plugin failed, trying intent URL:", e);
+            // Fallback: open Android location settings via deep link
+            try {
+                window.open('https://leevon-delivery.vercel.app/', '_system');
+            } catch (e2) {
+                console.error("All settings open methods failed:", e2);
+            }
         }
     };
 
@@ -613,11 +592,9 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                                 <button className="location-modal-btn primary-btn" onClick={handleEnableLocation}>
                                     📱 Retry GPS
                                 </button>
-                                {showSettingsButton && (
-                                    <button className="btn btn-secondary border w-100" style={{ padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: '500' }} onClick={handleOpenSettings}>
-                                        ⚙️ Open Location Settings
-                                    </button>
-                                )}
+                                <button className="btn btn-secondary border w-100" style={{ padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: '500' }} onClick={handleOpenSettings}>
+                                    ⚙️ Open Location Settings
+                                </button>
                             </div>
                         </>
                     ) : (
