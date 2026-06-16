@@ -284,19 +284,29 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                         console.warn("⚠️ Native GPS activation failed/cancelled:", gpsEnableErr);
                     }
 
-                    // Use a short 3s timeout - if GPS is off it will fail fast
+                    // Try to get high-accuracy location first (with a reasonable timeout of 10s)
                     try {
                         const pos = await Geolocation.getCurrentPosition({
                             enableHighAccuracy: true,
-                            timeout: 3000,
+                            timeout: 10000,
                             maximumAge: 0
                         });
                         await handleSuccess(pos);
                     } catch (gpsErr) {
-                        // GPS is off or unavailable - show error with settings button
-                        console.warn("🚫 GPS is off or unavailable:", gpsErr);
-                        setShowSettingsButton(true);
-                        handleError({ code: 2, message: "⚠️ Device Location is OFF. Please enable GPS in Settings and retry." });
+                        console.warn("🚫 High accuracy GPS failed, trying low accuracy fallback:", gpsErr);
+                        try {
+                            // Fallback to low-accuracy (faster, uses network/Wi-Fi positioning)
+                            const pos = await Geolocation.getCurrentPosition({
+                                enableHighAccuracy: false,
+                                timeout: 5000,
+                                maximumAge: 0
+                            });
+                            await handleSuccess(pos);
+                        } catch (fallbackErr) {
+                            console.warn("🚫 Low accuracy fallback also failed:", fallbackErr);
+                            setShowSettingsButton(true);
+                            handleError({ code: 2, message: "⚠️ Device Location is OFF or unavailable. Please enable GPS in Settings and retry." });
+                        }
                     }
                 } else {
                     handleError({ code: 1, message: "Location permission denied." });
