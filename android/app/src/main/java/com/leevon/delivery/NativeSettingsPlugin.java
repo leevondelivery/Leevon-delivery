@@ -65,10 +65,13 @@ public class NativeSettingsPlugin extends Plugin {
         getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                LocationRequest locationRequest = LocationRequest.create()
-                        .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-                        .setInterval(10000)
-                        .setFastestInterval(2000);
+                com.google.android.gms.location.LocationRequest locationRequest = 
+                    new com.google.android.gms.location.LocationRequest.Builder(
+                        com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, 
+                        10000
+                    )
+                    .setMinUpdateIntervalMillis(2000)
+                    .build();
 
                 LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
                         .addLocationRequest(locationRequest)
