@@ -24,7 +24,7 @@ public class NativeSettingsPlugin extends Plugin {
     private static final int REQUEST_CHECK_SETTINGS = 1001;
     private String lastCallbackId;
 
-    @PluginMethod
+    @PluginMethod 
     public void openLocationSettings(PluginCall call) {
         try {
             Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
