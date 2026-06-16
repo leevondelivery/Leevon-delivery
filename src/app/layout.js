@@ -51,6 +51,7 @@ export const viewport = {
 };
 
 import GlobalServiceCheck from './components/GlobalServiceCheck';
+import BackButtonHandler from './components/BackButtonHandler';
 
 export default function RootLayout({ children }) {
   return (
@@ -61,6 +62,7 @@ export default function RootLayout({ children }) {
         <StoreProvider>
           <AuthInitializer />
           <GlobalServiceCheck />
+          <BackButtonHandler />
           {children}
           <Navbar />
         </StoreProvider>
