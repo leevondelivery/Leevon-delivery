@@ -327,14 +327,16 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
             // Try the custom native plugin first
             const { registerPlugin } = await import('@capacitor/core');
             const NativeSettings = registerPlugin('NativeSettings');
+            alert("Calling NativeSettings.openLocationSettings()...");
             await NativeSettings.openLocationSettings();
+            alert("NativeSettings.openLocationSettings() completed.");
         } catch (e) {
-            console.warn("Native settings plugin failed, trying app-settings deep link:", e);
+            alert("Native settings plugin failed: " + e.message + "\nTrying fallback...");
             // Fallback: open Android location settings via deep link
             try {
                 window.open('app-settings:', '_system');
             } catch (e2) {
-                console.error("All settings open methods failed:", e2);
+                alert("Fallback settings failed: " + e2.message);
             }
         }
     };

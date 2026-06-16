@@ -32,6 +32,7 @@ public class NativeSettingsPlugin extends Plugin {
             getContext().startActivity(intent);
             call.resolve();
         } catch (Exception e) {
+
             call.reject("Could not open location settings", e);
         }
     }
@@ -76,12 +77,12 @@ public class NativeSettingsPlugin extends Plugin {
                 SettingsClient client = LocationServices.getSettingsClient(getActivity());
                 Task<LocationSettingsResponse> task = client.checkLocationSettings(builder.build());
 
-                task.addOnSuccessListener(getActivity(), response -> {
+                task.addOnSuccessListener(response -> {
                     // GPS is already enabled
                     call.resolve();
                 });
 
-                task.addOnFailureListener(getActivity(), e -> {
+                task.addOnFailureListener(e -> {
                     if (e instanceof ResolvableApiException) {
                         try {
                             ResolvableApiException resolvable = (ResolvableApiException) e;
