@@ -155,24 +155,51 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         const handleSuccess = async (pos) => {
             const { latitude, longitude } = pos.coords;
             console.log("✅ Location obtained:", { latitude, longitude });
-            alert("📍 Location Obtained Successfully!\nLatitude: " + latitude + "\nLongitude: " + longitude);
+            
+            const prevLat = localStorage.getItem("customerLat");
+            const prevLng = localStorage.getItem("customerLng");
+            const savedDistances = localStorage.getItem("allRestaurantDistances");
+
             localStorage.setItem("customerLat", latitude);
             localStorage.setItem("customerLng", longitude);
             sessionStorage.removeItem("locationSkipped"); // Clear skipped flag on success
-
-            // Only show blocking modal if this is the first load of the session
-            const isAppLoaded = sessionStorage.getItem("isAppLoaded");
-            if (!isAppLoaded) {
-                setShowFetchingModal(true);
-            }
 
             // Check if user is inside the polygon
             const isInside = isPointInPolygon({ latitude, longitude }, kurnoolPolygon);
 
             if (isInside) {
                 localStorage.setItem("isServiceAvailable", "true");
-                // Fetch distances first so they are ready
-                await fetchAllDistances(latitude, longitude);
+                
+                let mustRecalculate = true;
+                if (prevLat && prevLng && savedDistances) {
+                    try {
+                        const distanceMoved = getDistance(
+                            { latitude, longitude },
+                            { latitude: parseFloat(prevLat), longitude: parseFloat(prevLng) }
+                        );
+                        // If user has moved less than 100 meters, bypass the Directions API calling to make loading instant
+                        if (distanceMoved < 100) {
+                            mustRecalculate = false;
+                            console.log(`📍 Location moved by only ${distanceMoved}m (under 100m). Using cached distances for instant startup.`);
+                            const parsed = JSON.parse(savedDistances);
+                            setRoadDistances(parsed);
+                            distRef.current = parsed;
+                            sessionStorage.setItem("isAppLoaded", "true");
+                        }
+                    } catch (e) {
+                        console.error("Cache parsing error:", e);
+                    }
+                }
+
+                if (mustRecalculate) {
+                    // Only show blocking modal if this is the first load of the session
+                    const isAppLoaded = sessionStorage.getItem("isAppLoaded");
+                    if (!isAppLoaded) {
+                        setShowFetchingModal(true);
+                    }
+                    // Fetch distances first so they are ready
+                    await fetchAllDistances(latitude, longitude);
+                }
                 
                 // Now close everything since distances are ready
                 setShowLocationModal(false);
@@ -192,13 +219,13 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
             let errorMsg = "⚠️ GPS access required.";
             const code = err.code !== undefined ? err.code : (err.message && err.message.includes("denied") ? 1 : 2);
 
-            alert("❌ Location Error Details:\n" +
-                  "- Code: " + code + " (" + 
-                  (code === 1 ? "Permission Denied" : code === 2 ? "Position Unavailable" : code === 3 ? "Timeout" : "Unknown") + ")\n" +
-                  "- Message: " + (err.message || "No error message") + "\n" +
-                  "- HTTPS Secure Context: " + (typeof window !== 'undefined' && window.isSecureContext) + "\n" +
-                  "- Geolocation API available: " + (typeof navigator !== 'undefined' && !!navigator.geolocation) + "\n" +
-                  "- isNative: " + isNative);
+            console.error("❌ Location Error Details:", {
+                code,
+                message: err.message,
+                isSecureContext: typeof window !== 'undefined' && window.isSecureContext,
+                geolocationAvailable: typeof navigator !== 'undefined' && !!navigator.geolocation,
+                isNative
+            });
 
             switch (code) {
                 case 1: // PERMISSION_DENIED
@@ -280,7 +307,6 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                         await NativeSettings.requestGpsEnable();
                         console.log("✅ Native GPS activation successful or already enabled.");
                     } catch (gpsEnableErr) {
-                        alert("⚠️ Native GPS activation error:\n" + gpsEnableErr.message);
                         console.warn("⚠️ Native GPS activation failed/cancelled:", gpsEnableErr);
                     }
 
@@ -337,16 +363,15 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
             // Try the custom native plugin first
             const { registerPlugin } = await import('@capacitor/core');
             const NativeSettings = registerPlugin('NativeSettings');
-            alert("Calling NativeSettings.openLocationSettings()...");
+            console.log("Calling NativeSettings.openLocationSettings()...");
             await NativeSettings.openLocationSettings();
-            alert("NativeSettings.openLocationSettings() completed.");
         } catch (e) {
-            alert("Native settings plugin failed: " + e.message + "\nTrying fallback...");
+            console.warn("Native settings plugin failed: " + e.message + "\nTrying fallback...");
             // Fallback: open Android location settings via deep link
             try {
                 window.open('app-settings:', '_system');
             } catch (e2) {
-                alert("Fallback settings failed: " + e2.message);
+                console.error("Fallback settings failed: " + e2.message);
             }
         }
     };
@@ -420,23 +445,25 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 return;
             }
 
-            // 3. Check for Active Orders BEFORE Requesting Location (API Cost Optimization)
+            // 3. Check for Active Orders and Request Geolocation concurrently (saves 2+ seconds on startup)
             if (userId) {
-                try {
-                    const res = await fetch(`/api/check-user-active-order?userId=${userId}`);
-                    const data = await res.json();
-                    if (data.hasActiveOrder) {
-                        console.log("📦 Active Order Found: Skipping Google Route API & Location check.");
-                        sessionStorage.setItem("isAppLoaded", "true"); // Mark as loaded so we don't check again
-                        return; // EXIT COMPLETELY - Save Money!
-                    }
-                } catch (err) {
-                    console.error("Failed to check active order", err);
-                    // Fall through to request location if check fails
-                }
+                fetch(`/api/check-user-active-order?userId=${userId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.hasActiveOrder) {
+                            console.log("📦 Active Order Found: Skipping location requirement.");
+                            sessionStorage.setItem("isAppLoaded", "true");
+                            setShowLocationModal(false);
+                            setShowFetchingModal(false);
+                            setError(null);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to check active order:", err);
+                    });
             }
 
-            // 4. First time in session & No Active Order: Request Location
+            // 4. Request Location immediately
             requestLocation();
         };
 
