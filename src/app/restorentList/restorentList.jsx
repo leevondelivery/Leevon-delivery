@@ -359,6 +359,13 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
 
     // Open native Android location settings
     const handleOpenSettings = async () => {
+        // Set UI to fetching state immediately so spinner is visible when returning
+        setShowSettingsButton(false);
+        setOutOfZone(false);
+        setError(null);
+        setShowLocationModal(true);
+        setShowFetchingModal(true);
+
         try {
             // Try the custom native plugin first
             const { registerPlugin } = await import('@capacitor/core');
@@ -480,7 +487,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
             const locationSkipped = sessionStorage.getItem("locationSkipped");
             if (!isAppLoaded && !locationSkipped) {
                 console.log("🔄 App refocused/visible: Retrying location request.");
-                requestLocation();
+                requestLocation(true); // Force location check on focus gain
             }
         };
 
@@ -610,10 +617,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                             <p className="location-modal-text">{error || "You must enable location and be in Kurnool to use this app."}</p>
 
                             <div className="d-flex flex-column gap-2 w-100 px-3">
-                                <button className="location-modal-btn primary-btn" onClick={handleEnableLocation}>
-                                    📱 Retry GPS
-                                </button>
-                                <button className="btn btn-secondary border w-100" style={{ padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: '500' }} onClick={handleOpenSettings}>
+                                <button className="location-modal-btn primary-btn" onClick={handleOpenSettings}>
                                     ⚙️ Open Location Settings
                                 </button>
                             </div>
