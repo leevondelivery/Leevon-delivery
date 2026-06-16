@@ -155,6 +155,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         const handleSuccess = async (pos) => {
             const { latitude, longitude } = pos.coords;
             console.log("✅ Location obtained:", { latitude, longitude });
+            alert("📍 Location Obtained Successfully!\nLatitude: " + latitude + "\nLongitude: " + longitude);
             localStorage.setItem("customerLat", latitude);
             localStorage.setItem("customerLng", longitude);
             sessionStorage.removeItem("locationSkipped"); // Clear skipped flag on success
@@ -190,6 +191,14 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         const handleError = (err) => {
             let errorMsg = "⚠️ GPS access required.";
             const code = err.code !== undefined ? err.code : (err.message && err.message.includes("denied") ? 1 : 2);
+
+            alert("❌ Location Error Details:\n" +
+                  "- Code: " + code + " (" + 
+                  (code === 1 ? "Permission Denied" : code === 2 ? "Position Unavailable" : code === 3 ? "Timeout" : "Unknown") + ")\n" +
+                  "- Message: " + (err.message || "No error message") + "\n" +
+                  "- HTTPS Secure Context: " + (typeof window !== 'undefined' && window.isSecureContext) + "\n" +
+                  "- Geolocation API available: " + (typeof navigator !== 'undefined' && !!navigator.geolocation) + "\n" +
+                  "- isNative: " + isNative);
 
             switch (code) {
                 case 1: // PERMISSION_DENIED
