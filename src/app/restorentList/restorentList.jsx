@@ -280,6 +280,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                         await NativeSettings.requestGpsEnable();
                         console.log("✅ Native GPS activation successful or already enabled.");
                     } catch (gpsEnableErr) {
+                        alert("⚠️ Native GPS activation error:\n" + gpsEnableErr.message);
                         console.warn("⚠️ Native GPS activation failed/cancelled:", gpsEnableErr);
                     }
 

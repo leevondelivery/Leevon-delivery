@@ -5,10 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.location.LocationManager;
 import android.provider.Settings;
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.IntentSenderRequest;
-import androidx.activity.result.contract.ActivityResultContracts;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -25,28 +21,8 @@ import com.google.android.gms.tasks.Task;
 @CapacitorPlugin(name = "NativeSettings")
 public class NativeSettingsPlugin extends Plugin {
 
-    private ActivityResultLauncher<IntentSenderRequest> gpsResolutionLauncher;
+    private static final int REQUEST_CHECK_SETTINGS = 1001;
     private String lastCallbackId;
-
-    @Override
-    public void load() {
-        gpsResolutionLauncher = getActivity().registerForActivityResult(
-            new ActivityResultContracts.StartIntentSenderForResult(),
-            result -> {
-                if (lastCallbackId != null) {
-                    PluginCall savedCall = bridge.getSavedCall(lastCallbackId);
-                    if (savedCall != null) {
-                        if (result.getResultCode() == Activity.RESULT_OK) {
-                            savedCall.resolve();
-                        } else {
-                            savedCall.reject("User cancelled GPS enablement");
-                        }
-                        bridge.releaseCall(savedCall);
-                    }
-                }
-            }
-        );
-    }
 
     @PluginMethod
     public void openLocationSettings(PluginCall call) {
@@ -110,17 +86,12 @@ public class NativeSettingsPlugin extends Plugin {
                         try {
                             ResolvableApiException resolvable = (ResolvableApiException) e;
                             
-                            // Save the call to retrieve it in the launcher callback
+                            // Save the call to retrieve it in the callback
                             lastCallbackId = call.getCallbackId();
                             bridge.saveCall(call);
                             
-                            // Create IntentSenderRequest using AndroidX builder
-                            IntentSenderRequest intentSenderRequest = new IntentSenderRequest.Builder(
-                                resolvable.getResolution().getIntentSender()
-                            ).build();
-                            
-                            // Launch resolution dialog
-                            gpsResolutionLauncher.launch(intentSenderRequest);
+                            // Launch resolution dialog using activity resolution
+                            resolvable.startResolutionForResult(getActivity(), REQUEST_CHECK_SETTINGS);
                         } catch (Exception sendEx) {
                             call.reject("Failed to show GPS enable dialog", sendEx);
                         }
@@ -130,5 +101,24 @@ public class NativeSettingsPlugin extends Plugin {
                 });
             }
         });
+    }
+
+    @Override
+    protected void handleOnActivityResult(int requestCode, int resultCode, Intent data) {
+        super.handleOnActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == REQUEST_CHECK_SETTINGS) {
+            if (lastCallbackId != null) {
+                PluginCall savedCall = bridge.getSavedCall(lastCallbackId);
+                if (savedCall != null) {
+                    if (resultCode == Activity.RESULT_OK) {
+                        savedCall.resolve();
+                    } else {
+                        savedCall.reject("User cancelled GPS enablement");
+                    }
+                    bridge.releaseCall(savedCall);
+                }
+            }
+        }
     }
 }
