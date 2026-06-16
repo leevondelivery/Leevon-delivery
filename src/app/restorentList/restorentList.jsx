@@ -452,33 +452,36 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 return;
             }
 
-            // 3. Check for Active Orders and Request Geolocation concurrently (saves 2+ seconds on startup)
+            // 3. Check for Active Orders and Request Geolocation
+            let hasActiveOrder = false;
             if (userId) {
-                fetch(`/api/check-user-active-order?userId=${userId}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data && data.hasActiveOrder) {
-                            console.log("📦 Active Order Found: Skipping location requirement.");
-                            sessionStorage.setItem("isAppLoaded", "true");
-                            setShowLocationModal(false);
-                            setShowFetchingModal(false);
-                            setError(null);
-                        }
-                    })
-                    .catch(err => {
-                        console.error("Failed to check active order:", err);
-                    });
+                try {
+                    const res = await fetch(`/api/check-user-active-order?userId=${userId}`);
+                    const data = await res.json();
+                    if (data && data.hasActiveOrder) {
+                        console.log("📦 Active Order Found: Skipping location requirement.");
+                        sessionStorage.setItem("isAppLoaded", "true");
+                        setShowLocationModal(false);
+                        setShowFetchingModal(false);
+                        setError(null);
+                        hasActiveOrder = true;
+                    }
+                } catch (err) {
+                    console.error("Failed to check active order:", err);
+                }
             }
 
-            // 4. Request Location immediately
-            requestLocation();
+            // 4. Request Location only if there is no active order
+            if (!hasActiveOrder) {
+                requestLocation();
+            }
         };
 
         checkActiveAndProceed();
         setLoading(false);
 
         return () => clearInterval(intervalId);
-    }, [dispatch, router]);
+    }, [dispatch, router, requestLocation]);
 
     // Auto-retry location check when window/app gains focus (e.g. returning from Settings)
     useEffect(() => {

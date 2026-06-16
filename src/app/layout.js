@@ -60,11 +60,12 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${poppins.variable} antialiased`}
       >
         <StoreProvider>
-          <AuthInitializer />
-          <GlobalServiceCheck />
-          <BackButtonHandler />
-          {children}
-          <Navbar />
+          <AuthInitializer>
+            <GlobalServiceCheck />
+            <BackButtonHandler />
+            {children}
+            <Navbar />
+          </AuthInitializer>
         </StoreProvider>
       </body>
     </html>
