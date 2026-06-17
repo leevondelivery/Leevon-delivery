@@ -77,7 +77,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     const [showSettingsButton, setShowSettingsButton] = useState(false);
     const [savedAddresses, setSavedAddresses] = useState([]);
 
-    const handleSelectSavedAddress = (addr) => {
+    const handleSelectSavedAddress = async (addr) => {
         if (addr && addr.lat && addr.lng) {
             localStorage.setItem("customerLat", addr.lat);
             localStorage.setItem("customerLng", addr.lng);
@@ -86,8 +86,10 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
             const isInside = isPointInPolygon({ latitude: addr.lat, longitude: addr.lng }, kurnoolPolygon);
             if (isInside) {
                 localStorage.setItem("isServiceAvailable", "true");
-                fetchAllDistances(addr.lat, addr.lng);
+                setShowFetchingModal(true);
+                await fetchAllDistances(addr.lat, addr.lng);
                 setShowLocationModal(false);
+                setShowFetchingModal(false);
             } else {
                 localStorage.setItem("isServiceAvailable", "false");
                 setOutOfZone(true);
@@ -184,7 +186,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         const handleSuccess = async (pos) => {
             const { latitude, longitude } = pos.coords;
             console.log("✅ Location obtained:", { latitude, longitude });
-            
+
             const prevLat = localStorage.getItem("customerLat");
             const prevLng = localStorage.getItem("customerLng");
             const savedDistances = localStorage.getItem("allRestaurantDistances");
@@ -198,7 +200,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
 
             if (isInside) {
                 localStorage.setItem("isServiceAvailable", "true");
-                
+
                 let mustRecalculate = true;
                 if (prevLat && prevLng && savedDistances) {
                     try {
@@ -220,13 +222,17 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                     }
                 }
 
-                // Close the modals immediately so the app is active and fast!
-                setShowLocationModal(false);
-                setShowFetchingModal(false);
-
                 if (mustRecalculate) {
-                    // Fetch distances in the background asynchronously
-                    fetchAllDistances(latitude, longitude);
+                    setShowLocationModal(true);
+                    setShowFetchingModal(true);
+                    // Fetch distances and wait for completion
+                    await fetchAllDistances(latitude, longitude);
+                    setShowLocationModal(false);
+                    setShowFetchingModal(false);
+                } else {
+                    // Close the modals immediately if we are using cached distances
+                    setShowLocationModal(false);
+                    setShowFetchingModal(false);
                 }
             } else {
                 console.warn("🚫 User is outside the service area.");
@@ -553,7 +559,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                     const res = await fetch(`/api/check-user-active-order?userId=${userId}`);
                     const data = await res.json();
                     const serverActiveOrder = !!(data && data.hasActiveOrder);
-                    
+
                     const oldCached = localStorage.getItem("hasActiveOrder") === "true";
                     localStorage.setItem("hasActiveOrder", serverActiveOrder ? "true" : "false");
 
@@ -573,7 +579,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                                     const parsed = JSON.parse(savedDistances);
                                     setRoadDistances(parsed);
                                     distRef.current = parsed;
-                                } catch (e) {}
+                                } catch (e) { }
                             }
                         } else {
                             // If they no longer have an active order, request location if not loaded
@@ -637,7 +643,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         }
 
         let dist = roadDistances[name];
-        
+
         // If distance is not ready yet because it is still fetching in background, compute air distance instantly
         if (!dist || dist === "0" || dist === "0.0") {
             if (restaurant) {
@@ -663,12 +669,12 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
 
         if (name === "Viva Finedine") {
             router.push('/vivafinedine');
-        
+
         } else if (name === "Amigoo Noshery") {
             router.push('/AmigoNoshery');
-        }else if (name === "Mr.Hangout Café") {
+        } else if (name === "Mr.Hangout Café") {
             router.push('/mrhangout');
-        }else if (name === "Reddy Family Restuarent") {
+        } else if (name === "Reddy Family Restuarent") {
             router.push('/reddyfamilyrest');
         }
         else if (name === "Aaha Kitchens") {
@@ -677,7 +683,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         else if (name === "The Bro Story") {
             router.push('/brostory');
         }
-         else if (name === "Fun and Food") {
+        else if (name === "Fun and Food") {
             router.push('/funandfood');
         }
         else if (name === "PR Grand") {
@@ -704,7 +710,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         else if (name === "Mandi@9R") {
             router.push('/mandi9r');
         }
-        
+
     };
 
     if (loading && !mounted) return <Loading />;
@@ -764,7 +770,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                                 <i className="fas fa-map-marker-alt location-modal-icon" style={{ color: '#1a1a1a', fontSize: '1.5rem' }}></i>
                             </div>
                             <h5 className="location-modal-title" style={{ fontWeight: 'bold', color: '#1a1a1a', marginBottom: '15px' }}>Where to parcel?</h5>
-                            
+
                             <button
                                 className="location-modal-btn primary-btn w-100"
                                 onClick={handleEnableLocation}
@@ -883,15 +889,15 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                                         recognition.maxAlternatives = 1;
 
                                         recognition.onstart = () => {
-                                             setIsListening(true);
-                                             handleSearchChange('');
-                                         };
+                                            setIsListening(true);
+                                            handleSearchChange('');
+                                        };
 
-                                         recognition.onresult = (event) => {
-                                             const transcript = event.results[0][0].transcript;
-                                             handleSearchChange(transcript);
-                                             setIsListening(false);
-                                         };
+                                        recognition.onresult = (event) => {
+                                            const transcript = event.results[0][0].transcript;
+                                            handleSearchChange(transcript);
+                                            setIsListening(false);
+                                        };
 
                                         recognition.onerror = (event) => {
                                             console.error("Speech recognition error", event.error);
@@ -996,9 +1002,9 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
 
                             // Note: If Type Filter is "Veg", we generally want to see restaurants that have Veg items,
                             // even if the restaurant is labeled as "Non-Veg" overall. 
-                            
+
                             const fullRestaurantMatch = restaurantMatchesType && restaurantMatchesSearch && restaurantMatchesCategory;
-                            
+
                             // If user is searching specifically for a Category OR Search text, 
                             // we prioritize the Item match.
                             if (search || categoryFilter) {
