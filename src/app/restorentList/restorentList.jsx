@@ -45,6 +45,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('');
+    const [filtersRestored, setFiltersRestored] = useState(false);
 
     // Synchronize external search from category buttons
     useEffect(() => {
@@ -69,6 +70,95 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     const [error, setError] = useState(null);
     const [isRouting, setIsRouting] = useState(false);
     const [isCalculating, setIsCalculating] = useState(false);
+
+    // Restore search, category, type filters from sessionStorage on mount
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedSearch = sessionStorage.getItem("restaurantListSearch") || '';
+            const savedCategory = sessionStorage.getItem("restaurantListCategory") || '';
+            const savedType = sessionStorage.getItem("restaurantListType") || '';
+
+            if (savedSearch) setSearch(savedSearch);
+            if (savedCategory) setCategoryFilter(savedCategory);
+            if (savedType) setTypeFilter(savedType);
+        }
+        setFiltersRestored(true);
+    }, []);
+
+    // Save search filter to sessionStorage when it changes
+    useEffect(() => {
+        if (filtersRestored) {
+            sessionStorage.setItem("restaurantListSearch", search);
+        }
+    }, [search, filtersRestored]);
+
+    // Save category filter to sessionStorage when it changes
+    useEffect(() => {
+        if (filtersRestored) {
+            sessionStorage.setItem("restaurantListCategory", categoryFilter);
+        }
+    }, [categoryFilter, filtersRestored]);
+
+    // Save type filter to sessionStorage when it changes
+    useEffect(() => {
+        if (filtersRestored) {
+            sessionStorage.setItem("restaurantListType", typeFilter);
+        }
+    }, [typeFilter, filtersRestored]);
+
+    // Throttle writing scroll position to sessionStorage
+    useEffect(() => {
+        if (loading || !mounted || !filtersRestored) return;
+
+        let timeoutId;
+        const handleScroll = () => {
+            if (timeoutId) return;
+            timeoutId = setTimeout(() => {
+                sessionStorage.setItem("restaurantListScrollY", window.scrollY);
+                timeoutId = null;
+            }, 100);
+        };
+
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+            if (timeoutId) clearTimeout(timeoutId);
+        };
+    }, [loading, mounted, filtersRestored]);
+
+    // Restore scroll position once rendering is complete
+    useEffect(() => {
+        if (mounted && !loading && filtersRestored) {
+            const savedScrollY = sessionStorage.getItem("restaurantListScrollY");
+            if (savedScrollY) {
+                const targetScrollY = parseInt(savedScrollY, 10);
+                if (targetScrollY > 0) {
+                    console.log("📜 Restoring scroll position to:", targetScrollY);
+                    
+                    // Attempt scrolling multiple times to handle dynamic layout and images loading
+                    window.scrollTo(0, targetScrollY);
+
+                    const timer1 = setTimeout(() => {
+                        window.scrollTo(0, targetScrollY);
+                    }, 50);
+
+                    const timer2 = setTimeout(() => {
+                        window.scrollTo(0, targetScrollY);
+                    }, 150);
+
+                    const timer3 = setTimeout(() => {
+                        window.scrollTo(0, targetScrollY);
+                    }, 300);
+
+                    return () => {
+                        clearTimeout(timer1);
+                        clearTimeout(timer2);
+                        clearTimeout(timer3);
+                    };
+                }
+            }
+        }
+    }, [mounted, loading, filtersRestored]);
 
     // Location modal states
     const [showLocationModal, setShowLocationModal] = useState(false);
@@ -470,6 +560,10 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
 
         if (!userId || !loginTime || (currentTime - Number(loginTime) > thirtyDaysInMs)) {
             localStorage.clear(); // Clear session data if expired or missing
+            sessionStorage.removeItem("restaurantListSearch");
+            sessionStorage.removeItem("restaurantListCategory");
+            sessionStorage.removeItem("restaurantListType");
+            sessionStorage.removeItem("restaurantListScrollY");
             router.replace("/login");
             return;
         }
@@ -633,6 +727,11 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     };
 
     const handleClicke = (name) => {
+        // Save scroll position immediately before navigating away
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem("restaurantListScrollY", window.scrollY);
+        }
+
         // Find the restaurant to get its ID
         const restaurant = restList.find(r => r.name === name);
         if (restaurant && restaurant.id) {
