@@ -344,18 +344,38 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 }
             } catch (err) {
                 console.error("📱 Capacitor Geolocation failed, using browser fallback:", err);
-                navigator.geolocation
-                    ? navigator.geolocation.getCurrentPosition(handleSuccess, handleError, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 })
-                    : handleError({ code: 2, message: "Geolocation not supported" });
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        handleSuccess,
+                        (fallbackErr) => {
+                            console.warn("⚠️ Capacitor browser fallback high accuracy failed, trying low accuracy...");
+                            navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
+                                enableHighAccuracy: false,
+                                timeout: 5000,
+                                maximumAge: 300000
+                            });
+                        },
+                        { enableHighAccuracy: true, timeout: 3000, maximumAge: 0 }
+                    );
+                } else {
+                    handleError({ code: 2, message: "Geolocation not supported" });
+                }
             }
         } else {
             console.log("🌐 Web Platform. Using navigator.geolocation.");
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
-                    enableHighAccuracy: true,
-                    timeout: 20000,
-                    maximumAge: 0
-                });
+                navigator.geolocation.getCurrentPosition(
+                    handleSuccess,
+                    (webErr) => {
+                        console.warn("⚠️ Web high accuracy failed, trying low accuracy...");
+                        navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
+                            enableHighAccuracy: false,
+                            timeout: 5000,
+                            maximumAge: 300000
+                        });
+                    },
+                    { enableHighAccuracy: true, timeout: 3000, maximumAge: 0 }
+                );
             } else {
                 handleError({ code: 2, message: "Geolocation not supported" });
             }
@@ -438,69 +458,96 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         }, 20000);
 
         const checkActiveAndProceed = async () => {
-            // 1. Check for Active Orders first
-            let activeOrder = false;
+            const cachedActiveOrder = localStorage.getItem("hasActiveOrder") === "true";
+
+            // If cached as active, optimistically skip location prompts immediately
+            if (cachedActiveOrder) {
+                console.log("📦 Optimistically skipping location check based on cached active order.");
+                setShowLocationModal(false);
+                setShowFetchingModal(false);
+                setError(null);
+
+                const savedDistances = localStorage.getItem("allRestaurantDistances");
+                if (savedDistances) {
+                    try {
+                        const parsed = JSON.parse(savedDistances);
+                        setRoadDistances(parsed);
+                        distRef.current = parsed;
+                    } catch (e) {
+                        console.error("Cache parse error", e);
+                    }
+                }
+            } else {
+                // If not cached as active, check session cache
+                const isAppLoaded = sessionStorage.getItem("isAppLoaded");
+                if (isAppLoaded) {
+                    console.log("⚡ App cached in session: Skipping location request.");
+                    const savedDistances = localStorage.getItem("allRestaurantDistances");
+                    if (savedDistances) {
+                        try {
+                            const parsed = JSON.parse(savedDistances);
+                            setRoadDistances(parsed);
+                            distRef.current = parsed;
+                        } catch (e) {
+                            console.error("Cache parse error", e);
+                        }
+                    }
+                } else {
+                    // Cold start and no cached active order: trigger location fetch immediately!
+                    console.log("🧹 Cold start / fresh session & no cached active order. Triggering location fetch immediately.");
+                    localStorage.removeItem("allRestaurantDistances");
+                    localStorage.removeItem("customerLat");
+                    localStorage.removeItem("customerLng");
+                    localStorage.removeItem("currentRestaurantDistance");
+                    localStorage.removeItem("currentRestaurantName");
+                    localStorage.removeItem("isServiceAvailable");
+                    setRoadDistances({});
+                    distRef.current = {};
+
+                    requestLocation();
+                }
+            }
+
+            // In parallel, check the server for latest active order status
             if (userId) {
                 try {
                     const res = await fetch(`/api/check-user-active-order?userId=${userId}`);
                     const data = await res.json();
-                    if (data && data.hasActiveOrder) {
-                        console.log("📦 Active Order Found: Skipping location requirement.");
-                        sessionStorage.setItem("isAppLoaded", "true");
-                        setShowLocationModal(false);
-                        setShowFetchingModal(false);
-                        setError(null);
-                        activeOrder = true;
+                    const serverActiveOrder = !!(data && data.hasActiveOrder);
+                    
+                    const oldCached = localStorage.getItem("hasActiveOrder") === "true";
+                    localStorage.setItem("hasActiveOrder", serverActiveOrder ? "true" : "false");
+
+                    if (serverActiveOrder !== oldCached) {
+                        console.log("🔄 Active order status changed on server:", serverActiveOrder);
+                        if (serverActiveOrder) {
+                            // If they have an active order now, dismiss any location modals
+                            sessionStorage.setItem("isAppLoaded", "true");
+                            setShowLocationModal(false);
+                            setShowFetchingModal(false);
+                            setError(null);
+
+                            // Restore distances if any
+                            const savedDistances = localStorage.getItem("allRestaurantDistances");
+                            if (savedDistances) {
+                                try {
+                                    const parsed = JSON.parse(savedDistances);
+                                    setRoadDistances(parsed);
+                                    distRef.current = parsed;
+                                } catch (e) {}
+                            }
+                        } else {
+                            // If they no longer have an active order, request location if not loaded
+                            const isAppLoaded = sessionStorage.getItem("isAppLoaded");
+                            if (!isAppLoaded) {
+                                requestLocation();
+                            }
+                        }
                     }
                 } catch (err) {
                     console.error("Failed to check active order:", err);
                 }
             }
-
-            if (activeOrder) {
-                // If there is an active order, load cached distances if available to keep list rendering
-                const savedDistances = localStorage.getItem("allRestaurantDistances");
-                if (savedDistances) {
-                    try {
-                        const parsed = JSON.parse(savedDistances);
-                        setRoadDistances(parsed);
-                        distRef.current = parsed;
-                    } catch (e) {
-                        console.error("Cache parse error", e);
-                    }
-                }
-                return;
-            }
-
-            // 2. No active order: check session cache
-            const isAppLoaded = sessionStorage.getItem("isAppLoaded");
-            if (isAppLoaded) {
-                console.log("⚡ App cached in session: Skipping location request.");
-                const savedDistances = localStorage.getItem("allRestaurantDistances");
-                if (savedDistances) {
-                    try {
-                        const parsed = JSON.parse(savedDistances);
-                        setRoadDistances(parsed);
-                        distRef.current = parsed;
-                    } catch (e) {
-                        console.error("Cache parse error", e);
-                    }
-                }
-                return;
-            }
-
-            // 3. Cold start / fresh session & no active order: clear stale location cache and request fresh location
-            console.log("🧹 Cold start / fresh session & no active order. Clearing stale location cache.");
-            localStorage.removeItem("allRestaurantDistances");
-            localStorage.removeItem("customerLat");
-            localStorage.removeItem("customerLng");
-            localStorage.removeItem("currentRestaurantDistance");
-            localStorage.removeItem("currentRestaurantName");
-            localStorage.removeItem("isServiceAvailable");
-            setRoadDistances({});
-            distRef.current = {};
-
-            requestLocation();
         };
 
         checkActiveAndProceed();
