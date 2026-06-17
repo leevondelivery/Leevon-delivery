@@ -32,6 +32,8 @@ export default function Cart() {
 
   const aa = "gg";
   const [expandAddresses, setExpandAddresses] = useState(false);
+  const [customerLat, setCustomerLat] = useState(null);
+  const [customerLng, setCustomerLng] = useState(null);
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
@@ -104,6 +106,8 @@ export default function Cart() {
     setUserName(localStorage.getItem("userName") || "");
     setUserEmail(localStorage.getItem("userEmail") || "");
     setUserPhone(localStorage.getItem("userPhone") || "");
+    setCustomerLat(localStorage.getItem("customerLat") || null);
+    setCustomerLng(localStorage.getItem("customerLng") || null);
   }, []);
 
   // ✅ Check for active orders
@@ -181,6 +185,7 @@ export default function Cart() {
   const platformFeeGst = Math.round(platformFee * 0.18); // Round 18% Platform Fee GST
   const gstAmount = foodGst + deliveryGst; // Combine ALL GST into one
   const grandTotal = Math.round(totalPrice + gstAmount + deliveryCharge + platformFee); // Round Grand Total
+  const isLocationMissing = !customerLat || !customerLng || distance === 0;
 
   const clear = () => {
     localStorage.removeItem('cart');
@@ -267,6 +272,8 @@ export default function Cart() {
       if (addr.lat && addr.lng) {
         localStorage.setItem("customerLat", addr.lat);
         localStorage.setItem("customerLng", addr.lng);
+        setCustomerLat(addr.lat);
+        setCustomerLng(addr.lng);
       }
 
       showToast(`Address (${addr.label}) loaded!`, "success");
@@ -523,7 +530,7 @@ export default function Cart() {
             <button onClick={clear} className="beige-btn-outline">Clear all</button>
             <button
               onClick={() => {
-                if (isLocationSkipped) {
+                if (isLocationMissing || isLocationSkipped) {
                   showToast("Location is required to calculate delivery charges and place order.", "danger");
                   return;
                 }
@@ -534,17 +541,17 @@ export default function Cart() {
                 setShowAddressBox(true);
               }}
               className="beige-btn-filled"
-              disabled={showAddressBox || hasActiveOrder || isLocationSkipped || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")}
+              disabled={showAddressBox || hasActiveOrder || isLocationSkipped || isLocationMissing || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")}
               title={
-                isLocationSkipped
+                isLocationMissing || isLocationSkipped
                   ? "Location required to place order"
                   : (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")
                     ? "Service Unavailable: Outside Delivery Area"
                     : (hasActiveOrder ? "You have an active order" : "Place order")
               }
-              style={(hasActiveOrder || isLocationSkipped || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+              style={(hasActiveOrder || isLocationSkipped || isLocationMissing || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
             >
-              {hasActiveOrder ? "Order in Progress" : (isLocationSkipped ? "Location Required" : "Place the order")}
+              {hasActiveOrder ? "Order in Progress" : (isLocationMissing || isLocationSkipped ? "Location Required" : "Place the order")}
             </button>
           </div>
 
@@ -679,19 +686,19 @@ export default function Cart() {
               <button
                 onClick={placeOrder}
                 className="confirm-btn"
-                disabled={loading || hasActiveOrder || isLocationSkipped || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")}
+                disabled={loading || hasActiveOrder || isLocationSkipped || isLocationMissing || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")}
                 title={
-                  isLocationSkipped
+                  isLocationMissing || isLocationSkipped
                     ? "Location required to place order"
                     : (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")
                       ? "Service Unavailable: Outside Delivery Area"
                       : (hasActiveOrder ? "Cannot proceed with active order" : "Confirm Order")
                 }
-                style={(hasActiveOrder || isLocationSkipped || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                style={(hasActiveOrder || isLocationSkipped || isLocationMissing || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
               >
                 {hasActiveOrder
                   ? "Order already in progress"
-                  : (loading ? <Loading /> : `Confirm order and pay ₹${grandTotal.toFixed(0)}`)
+                  : (isLocationMissing || isLocationSkipped ? "Location Required" : (loading ? <Loading /> : `Confirm order and pay ₹${grandTotal.toFixed(0)}`))
                 }
               </button>
             </div>

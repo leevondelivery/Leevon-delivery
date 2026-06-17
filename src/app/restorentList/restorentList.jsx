@@ -39,6 +39,8 @@ const kurnoolPolygon = [
     { latitude: 15.847026, longitude: 78.005964 }
 ];
 
+let isAppInitialized = false;
+
 export default function RestorentList({ externalSearch, onSearchChange }) {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -80,16 +82,19 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
 
     const router = useRouter();
 
-    // IMMEDIATE: Load cached distances on mount to prevent "..." flash
+    // IMMEDIATE: Load cached distances on mount only if already loaded in this session
     useEffect(() => {
-        const saved = localStorage.getItem("allRestaurantDistances");
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                setRoadDistances(parsed);
-                distRef.current = parsed;
-            } catch (e) {
-                console.error("Failed to load initial cache", e);
+        const isAppLoaded = sessionStorage.getItem("isAppLoaded");
+        if (isAppLoaded) {
+            const saved = localStorage.getItem("allRestaurantDistances");
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    setRoadDistances(parsed);
+                    distRef.current = parsed;
+                } catch (e) {
+                    console.error("Failed to load initial cache", e);
+                }
             }
         }
     }, []);
@@ -401,6 +406,12 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     const restaurantStatuses = useSelector(selectAllStatuses);
 
     useEffect(() => {
+        if (!isAppInitialized) {
+            console.log("🆕 Cold start detected. Resetting session loader.");
+            sessionStorage.removeItem("isAppLoaded");
+            isAppInitialized = true;
+        }
+
         setMounted(true);
 
         // Redux Auth Check
@@ -426,34 +437,9 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
             dispatch(fetchItemStatuses());
         }, 20000);
 
-        // Location Logic: Aggressively prefer cached data
-        const savedDistances = localStorage.getItem("allRestaurantDistances");
-        // const isAppLoaded = sessionStorage.getItem("isAppLoaded"); // Removed to force check on reload
-
         const checkActiveAndProceed = async () => {
-            // 1. Load cached distances FIRST so user sees data immediately while we refresh location
-            if (savedDistances) {
-                try {
-                    const parsed = JSON.parse(savedDistances);
-                    console.log("💾 Loading distances from cache for immediate display:", parsed);
-                    setRoadDistances(parsed);
-                    distRef.current = parsed;
-                } catch (e) {
-                    console.error("Cache parse error", e);
-                }
-            }
-
-            // 2. Request Location Logic
-            // If app is already loaded in this session, DO NOT request location again.
-            // This prevents asking for permission or recalculating distances on simple route changes.
-            const isAppLoaded = sessionStorage.getItem("isAppLoaded");
-            if (isAppLoaded) {
-                console.log("⚡ App cached in session: Skipping location request.");
-                return;
-            }
-
-            // 3. Check for Active Orders and Request Geolocation
-            let hasActiveOrder = false;
+            // 1. Check for Active Orders first
+            let activeOrder = false;
             if (userId) {
                 try {
                     const res = await fetch(`/api/check-user-active-order?userId=${userId}`);
@@ -464,17 +450,57 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                         setShowLocationModal(false);
                         setShowFetchingModal(false);
                         setError(null);
-                        hasActiveOrder = true;
+                        activeOrder = true;
                     }
                 } catch (err) {
                     console.error("Failed to check active order:", err);
                 }
             }
 
-            // 4. Request Location only if there is no active order
-            if (!hasActiveOrder) {
-                requestLocation();
+            if (activeOrder) {
+                // If there is an active order, load cached distances if available to keep list rendering
+                const savedDistances = localStorage.getItem("allRestaurantDistances");
+                if (savedDistances) {
+                    try {
+                        const parsed = JSON.parse(savedDistances);
+                        setRoadDistances(parsed);
+                        distRef.current = parsed;
+                    } catch (e) {
+                        console.error("Cache parse error", e);
+                    }
+                }
+                return;
             }
+
+            // 2. No active order: check session cache
+            const isAppLoaded = sessionStorage.getItem("isAppLoaded");
+            if (isAppLoaded) {
+                console.log("⚡ App cached in session: Skipping location request.");
+                const savedDistances = localStorage.getItem("allRestaurantDistances");
+                if (savedDistances) {
+                    try {
+                        const parsed = JSON.parse(savedDistances);
+                        setRoadDistances(parsed);
+                        distRef.current = parsed;
+                    } catch (e) {
+                        console.error("Cache parse error", e);
+                    }
+                }
+                return;
+            }
+
+            // 3. Cold start / fresh session & no active order: clear stale location cache and request fresh location
+            console.log("🧹 Cold start / fresh session & no active order. Clearing stale location cache.");
+            localStorage.removeItem("allRestaurantDistances");
+            localStorage.removeItem("customerLat");
+            localStorage.removeItem("customerLng");
+            localStorage.removeItem("currentRestaurantDistance");
+            localStorage.removeItem("currentRestaurantName");
+            localStorage.removeItem("isServiceAvailable");
+            setRoadDistances({});
+            distRef.current = {};
+
+            requestLocation();
         };
 
         checkActiveAndProceed();
