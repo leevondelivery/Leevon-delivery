@@ -106,25 +106,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         }
     }, [typeFilter, filtersRestored]);
 
-    // Throttle writing scroll position to sessionStorage
-    useEffect(() => {
-        if (loading || !mounted || !filtersRestored) return;
 
-        let timeoutId;
-        const handleScroll = () => {
-            if (timeoutId) return;
-            timeoutId = setTimeout(() => {
-                sessionStorage.setItem("restaurantListScrollY", window.scrollY);
-                timeoutId = null;
-            }, 100);
-        };
-
-        window.addEventListener("scroll", handleScroll, { passive: true });
-        return () => {
-            window.removeEventListener("scroll", handleScroll);
-            if (timeoutId) clearTimeout(timeoutId);
-        };
-    }, [loading, mounted, filtersRestored]);
 
     // Restore scroll position once rendering is complete
     useEffect(() => {
@@ -134,7 +116,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 const targetScrollY = parseInt(savedScrollY, 10);
                 if (targetScrollY > 0) {
                     console.log("📜 Restoring scroll position to:", targetScrollY);
-                    
+
                     // Attempt scrolling multiple times to handle dynamic layout and images loading
                     window.scrollTo(0, targetScrollY);
 
@@ -429,7 +411,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                     } catch (gpsErr) {
                         console.warn("🚫 High accuracy GPS failed, checking reason:", gpsErr);
 
-                        const isTimeout = gpsErr.code === 3 || 
+                        const isTimeout = gpsErr.code === 3 ||
                             (gpsErr.message && gpsErr.message.toLowerCase().includes("timeout"));
 
                         // If not a timeout, location is disabled or permission denied -> handle/resolve immediately!
@@ -510,7 +492,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                                         await handleSuccess(lastPos);
                                         return;
                                     }
-                                } catch (e) {}
+                                } catch (e) { }
                                 console.error("🚫 GPS activation failed completely:", retryErr);
                                 setShowSettingsButton(true);
                                 handleError({ code: 2, message: "⚠️ Device Location is OFF or unavailable. Please enable GPS in Settings and retry." });
@@ -527,7 +509,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                         handleSuccess,
                         (fallbackErr) => {
                             console.warn("⚠️ Capacitor browser fallback high accuracy failed, checking reason...");
-                            const isWebTimeout = fallbackErr.code === 3 || 
+                            const isWebTimeout = fallbackErr.code === 3 ||
                                 (fallbackErr.message && fallbackErr.message.toLowerCase().includes("timeout"));
 
                             if (!isWebTimeout) {
@@ -565,7 +547,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                     handleSuccess,
                     (webErr) => {
                         console.warn("⚠️ Web high accuracy failed, checking reason...");
-                        const isWebTimeout = webErr.code === 3 || 
+                        const isWebTimeout = webErr.code === 3 ||
                             (webErr.message && webErr.message.toLowerCase().includes("timeout"));
 
                         if (!isWebTimeout) {
@@ -823,7 +805,6 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         setIsRouting(true);
         setTimeout(() => setIsRouting(false), 2000);
     };
-
     const handleClicke = (name) => {
         // Save scroll position immediately before navigating away
         if (typeof window !== 'undefined') {
