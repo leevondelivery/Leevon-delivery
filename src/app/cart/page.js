@@ -9,6 +9,9 @@ import { showToast } from '../../toaster/page';
 import { getCoinsEarned } from 'lib/coinConfig';
 import './cart.css';
 import ErrorPopup from '../login/ErrorPopup';
+import { getDistance } from "geolib";
+import { getExactDistance } from '../actions/delivery';
+import { restList } from '../restorentList/restorentDtata';
 
 export default function Cart() {
   const router = useRouter();
@@ -34,6 +37,59 @@ export default function Cart() {
   const [expandAddresses, setExpandAddresses] = useState(false);
   const [customerLat, setCustomerLat] = useState(null);
   const [customerLng, setCustomerLng] = useState(null);
+
+  const calculateExactDistanceForCart = async (uLat, uLng, cartRestName) => {
+    if (!uLat || !uLng || !cartRestName) return;
+
+    const restaurant = restList.find(
+      r => r.name.toLowerCase().trim() === cartRestName.toLowerCase().trim()
+    );
+
+    if (!restaurant) {
+      console.warn("Could not find restaurant in restList:", cartRestName);
+      return;
+    }
+
+    try {
+      console.log(`🌐 Cart: Calculating exact road distance to ${restaurant.name}...`);
+      const data = await getExactDistance(
+        { lat: parseFloat(uLat), lng: parseFloat(uLng) },
+        { lat: restaurant.lat, lng: restaurant.lng }
+      );
+      
+      let dist = null;
+      if (data && data.km) {
+        dist = parseFloat(data.km);
+      } else {
+        const distMeters = getDistance(
+          { latitude: parseFloat(uLat), longitude: parseFloat(uLng) },
+          { latitude: restaurant.lat, longitude: restaurant.lng }
+        );
+        dist = parseFloat((distMeters / 1000).toFixed(1));
+      }
+
+      if (dist !== null) {
+        console.log(`✅ Exact road distance calculated: ${dist} km`);
+        setDistance(dist);
+        localStorage.setItem("currentRestaurantDistance", dist);
+        localStorage.setItem("currentRestaurantName", restaurant.name);
+
+        const savedDistances = localStorage.getItem("allRestaurantDistances");
+        const distanceData = savedDistances ? JSON.parse(savedDistances) : {};
+        distanceData[restaurant.name] = dist;
+        localStorage.setItem("allRestaurantDistances", JSON.stringify(distanceData));
+
+        if (dist <= 3) {
+          setDeliveryCharge(25);
+        } else {
+          const extraKm = Math.ceil(dist - 3);
+          setDeliveryCharge(25 + (extraKm * 5));
+        }
+      }
+    } catch (err) {
+      console.error("Error calculating exact distance in cart:", err);
+    }
+  };
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
@@ -106,8 +162,10 @@ export default function Cart() {
     setUserName(localStorage.getItem("userName") || "");
     setUserEmail(localStorage.getItem("userEmail") || "");
     setUserPhone(localStorage.getItem("userPhone") || "");
-    setCustomerLat(localStorage.getItem("customerLat") || null);
-    setCustomerLng(localStorage.getItem("customerLng") || null);
+    const lat = localStorage.getItem("customerLat");
+    const lng = localStorage.getItem("customerLng");
+    setCustomerLat(lat || null);
+    setCustomerLng(lng || null);
   }, []);
 
   // ✅ Check for active orders

@@ -75,6 +75,32 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
     const [showFetchingModal, setShowFetchingModal] = useState(false);
     const [outOfZone, setOutOfZone] = useState(false);
     const [showSettingsButton, setShowSettingsButton] = useState(false);
+    const [savedAddresses, setSavedAddresses] = useState([]);
+
+    const handleSelectSavedAddress = (addr) => {
+        if (addr && addr.lat && addr.lng) {
+            localStorage.setItem("customerLat", addr.lat);
+            localStorage.setItem("customerLng", addr.lng);
+            sessionStorage.removeItem("locationSkipped"); // Clear skipped flag
+
+            const isInside = isPointInPolygon({ latitude: addr.lat, longitude: addr.lng }, kurnoolPolygon);
+            if (isInside) {
+                localStorage.setItem("isServiceAvailable", "true");
+                fetchAllDistances(addr.lat, addr.lng);
+                setShowLocationModal(false);
+            } else {
+                localStorage.setItem("isServiceAvailable", "false");
+                setOutOfZone(true);
+                setError("❌ Outside Service Area");
+            }
+        }
+    };
+
+    const handleSkipLocation = () => {
+        sessionStorage.setItem("locationSkipped", "true");
+        sessionStorage.setItem("isAppLoaded", "true");
+        setShowLocationModal(false);
+    };
 
     // Location distance states
     const [roadDistances, setRoadDistances] = useState({});
@@ -104,7 +130,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
 
     // Fetch distances function
     const fetchAllDistances = useCallback(async (uLat, uLng) => {
-        console.log("🌐 New Application Instance: Hitting Route API...");
+        console.log("🌐 Background: Fetching exact road distances...");
         const results = {};
         await Promise.all(restList.map(async (item) => {
             try {
@@ -116,7 +142,6 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                     results[item.name] = data.km;
                 } else {
                     // Fallback to air distance if API fails
-                    console.warn(`⚠️ Falling back to air distance for ${item.name}`);
                     const distMeters = getDistance(
                         { latitude: parseFloat(uLat), longitude: parseFloat(uLng) },
                         { latitude: item.lat, longitude: item.lng }
@@ -124,8 +149,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                     results[item.name] = (distMeters / 1000).toFixed(1);
                 }
             } catch (err) {
-                console.error(err);
-                // Fallback on error
+                console.error(`Error calculating distance for ${item.name}:`, err);
                 const distMeters = getDistance(
                     { latitude: parseFloat(uLat), longitude: parseFloat(uLng) },
                     { latitude: item.lat, longitude: item.lng }
@@ -196,28 +220,22 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                     }
                 }
 
-                if (mustRecalculate) {
-                    // Only show blocking modal if this is the first load of the session
-                    const isAppLoaded = sessionStorage.getItem("isAppLoaded");
-                    if (!isAppLoaded) {
-                        setShowFetchingModal(true);
-                    }
-                    // Fetch distances first so they are ready
-                    await fetchAllDistances(latitude, longitude);
-                }
-                
-                // Now close everything since distances are ready
+                // Close the modals immediately so the app is active and fast!
                 setShowLocationModal(false);
+                setShowFetchingModal(false);
+
+                if (mustRecalculate) {
+                    // Fetch distances in the background asynchronously
+                    fetchAllDistances(latitude, longitude);
+                }
             } else {
                 console.warn("🚫 User is outside the service area.");
                 localStorage.setItem("isServiceAvailable", "false");
                 setOutOfZone(true);
                 setError("❌ Outside Service Area");
                 setShowLocationModal(false);
+                setShowFetchingModal(false);
             }
-
-            // Always hide fetching spinner after completion
-            setShowFetchingModal(false);
         };
 
         const handleError = (err) => {
@@ -454,6 +472,23 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         dispatch(fetchRestaurantStatuses());
         dispatch(fetchItemStatuses());
 
+        // Fetch saved addresses from API on mount
+        const fetchSavedAddresses = async () => {
+            if (!userId) return;
+            try {
+                const res = await fetch(`/api/users/address?userId=${userId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.addresses) {
+                        setSavedAddresses(data.addresses);
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching saved addresses on startup:", error);
+            }
+        };
+        fetchSavedAddresses();
+
         // Auto-refresh status
         const intervalId = setInterval(() => {
             console.log("🔄 Auto-refreshing restaurant data...");
@@ -508,7 +543,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                     setRoadDistances({});
                     distRef.current = {};
 
-                    requestLocation();
+                    setShowLocationModal(true);
                 }
             }
 
@@ -544,7 +579,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                             // If they no longer have an active order, request location if not loaded
                             const isAppLoaded = sessionStorage.getItem("isAppLoaded");
                             if (!isAppLoaded) {
-                                requestLocation();
+                                setShowLocationModal(true);
                             }
                         }
                     }
@@ -601,7 +636,28 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
             }
         }
 
-        const dist = roadDistances[name] || "0";
+        let dist = roadDistances[name];
+        
+        // If distance is not ready yet because it is still fetching in background, compute air distance instantly
+        if (!dist || dist === "0" || dist === "0.0") {
+            if (restaurant) {
+                const lat = localStorage.getItem("customerLat");
+                const lng = localStorage.getItem("customerLng");
+                if (lat && lng) {
+                    try {
+                        const distMeters = getDistance(
+                            { latitude: parseFloat(lat), longitude: parseFloat(lng) },
+                            { latitude: restaurant.lat, longitude: restaurant.lng }
+                        );
+                        dist = (distMeters / 1000).toFixed(1);
+                    } catch (err) {
+                        console.error("Geodesic fallback error:", err);
+                    }
+                }
+            }
+        }
+
+        dist = dist || "0";
         localStorage.setItem("currentRestaurantDistance", dist);
         localStorage.setItem("currentRestaurantName", name);
 
@@ -704,22 +760,69 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                         </>
                     ) : (
                         <>
-                            <div className="location-modal-icon-container">
-                                <i className="fas fa-map-marker-alt location-modal-icon"></i>
+                            <div className="location-modal-icon-container" style={{ margin: '0 auto 15px auto', width: '50px', height: '50px', background: '#f5cb5c', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <i className="fas fa-map-marker-alt location-modal-icon" style={{ color: '#1a1a1a', fontSize: '1.5rem' }}></i>
                             </div>
-                            <h5 className="location-modal-title">Location Permission Disclosure</h5>
-                            <p className="location-modal-text" style={{ fontSize: '0.85rem', textAlign: 'left', lineHeight: '1.5', margin: '15px 0', padding: '0 5px' }}>
-                                This application requires access to your device's precise location (GPS coordinates) to:
-                                <br />• <strong>Verify Service Area:</strong> Confirm if you are located within our active Kurnool City delivery boundary.
-                                <br />• <strong>Calculate Delivery Fees:</strong> Compute accurate road distance and delivery fees from the restaurant to your doorstep.
-                                <br /><br />
-                                This location data is accessed only in the foreground while you are using the app. We do not store your coordinates permanently, use them for marketing, or share them with third-party advertisers.
-                            </p>
+                            <h5 className="location-modal-title" style={{ fontWeight: 'bold', color: '#1a1a1a', marginBottom: '15px' }}>Where to parcel?</h5>
+                            
                             <button
-                                className="location-modal-btn primary-btn"
+                                className="location-modal-btn primary-btn w-100"
                                 onClick={handleEnableLocation}
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#1a1a1a', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '12px', fontWeight: 'bold', fontSize: '0.85rem' }}
                             >
-                                🔐 Agree & Enable Location
+                                <i className="fas fa-crosshairs"></i> Use Current Location
+                            </button>
+
+                            {savedAddresses && savedAddresses.length > 0 && (
+                                <div className="text-start mt-3 w-100">
+                                    <label className="location-modal-subtitle" style={{ fontWeight: 'bold', fontSize: '0.8rem', color: '#666', marginBottom: '8px', display: 'block' }}>Saved Addresses</label>
+                                    <div className="d-flex flex-column gap-2" style={{ maxHeight: '180px', overflowY: 'auto', paddingRight: '5px' }}>
+                                        {savedAddresses.map((addr, idx) => (
+                                            <div
+                                                key={addr._id || idx}
+                                                onClick={() => handleSelectSavedAddress(addr)}
+                                                className="saved-address-item-modal"
+                                                style={{
+                                                    cursor: 'pointer',
+                                                    border: '1px solid #ddd',
+                                                    padding: '8px 12px',
+                                                    borderRadius: '8px',
+                                                    fontSize: '0.8rem',
+                                                    background: '#fff',
+                                                    textAlign: 'left',
+                                                    transition: 'all 0.2s',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '2px'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.background = '#f7f7f7';
+                                                    e.currentTarget.style.borderColor = '#1a1a1a';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.background = '#fff';
+                                                    e.currentTarget.style.borderColor = '#ddd';
+                                                }}
+                                            >
+                                                <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', color: '#1a1a1a' }}>
+                                                    <i className={`fas ${addr.label === 'Home' ? 'fa-home' : addr.label === 'Office' ? 'fa-building' : addr.label === 'Apartment' ? 'fa-city' : 'fa-map-marker-alt'}`} style={{ color: '#1a1a1a' }}></i>
+                                                    {addr.label}
+                                                </div>
+                                                <div style={{ color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    {addr.flatNo}, {addr.street}{addr.landmark ? `, ${addr.landmark}` : ""}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                className="btn btn-link w-100 mt-3"
+                                onClick={handleSkipLocation}
+                                style={{ fontSize: '0.8rem', color: '#666', textDecoration: 'none', fontWeight: 'bold' }}
+                            >
+                                Skip & browse items
                             </button>
                         </>
                     )}
