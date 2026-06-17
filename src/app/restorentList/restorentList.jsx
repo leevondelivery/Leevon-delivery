@@ -427,17 +427,69 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                         });
                         await handleSuccess(pos);
                     } catch (gpsErr) {
-                        console.warn("🚫 High accuracy GPS failed, trying low accuracy fallback:", gpsErr);
+                        console.warn("🚫 High accuracy GPS failed, checking reason:", gpsErr);
+
+                        const isTimeout = gpsErr.code === 3 || 
+                            (gpsErr.message && gpsErr.message.toLowerCase().includes("timeout"));
+
+                        // If not a timeout, location is disabled or permission denied -> handle/resolve immediately!
+                        if (!isTimeout) {
+                            if (gpsErr.code === 1) {
+                                handleError(gpsErr);
+                                return;
+                            }
+                            // Attempt to request GPS natively right away to make it fast
+                            try {
+                                console.log("Directly attempting native GPS activation...");
+                                const { registerPlugin } = await import('@capacitor/core');
+                                const NativeSettings = registerPlugin('NativeSettings');
+                                await NativeSettings.requestGpsEnable();
+                                // Retry one last time
+                                const retryPos = await Geolocation.getCurrentPosition({
+                                    enableHighAccuracy: false,
+                                    timeout: 4000,
+                                    maximumAge: 0
+                                });
+                                await handleSuccess(retryPos);
+                            } catch (retryErr) {
+                                console.warn("🚫 Native GPS activation failed, trying cached position fallback...");
+                                try {
+                                    const lastPos = await Geolocation.getLastKnownPosition();
+                                    if (lastPos) {
+                                        await handleSuccess(lastPos);
+                                        return;
+                                    }
+                                } catch (cachedErr) {
+                                    console.error("🚫 Cached fallback failed:", cachedErr);
+                                }
+                                handleError({ code: 2, message: "⚠️ Device Location is OFF or unavailable. Please enable GPS in Settings and retry." });
+                            }
+                            return;
+                        }
+
+                        // If it timed out, try low accuracy fallback
                         try {
                             // Fallback to low-accuracy (faster, network positioning)
                             const pos = await Geolocation.getCurrentPosition({
                                 enableHighAccuracy: false,
-                                timeout: 3000,
+                                timeout: 6000,
                                 maximumAge: 300000
                             });
                             await handleSuccess(pos);
                         } catch (fallbackErr) {
-                            console.warn("🚫 Low accuracy fallback failed. Device location might be OFF. Attempting GPS activation...");
+                            console.warn("🚫 Low accuracy fallback failed. Checking last known cached position...");
+                            try {
+                                const lastPos = await Geolocation.getLastKnownPosition();
+                                if (lastPos) {
+                                    console.log("📍 Using last known location fallback:", lastPos);
+                                    await handleSuccess(lastPos);
+                                    return;
+                                }
+                            } catch (lastPosErr) {
+                                console.warn("🚫 Last known location unavailable:", lastPosErr);
+                            }
+
+                            console.warn("🚫 Low accuracy and cached position failed. Attempting GPS activation...");
                             // Try to enable GPS natively since both failed (meaning Location is likely OFF)
                             try {
                                 const { registerPlugin } = await import('@capacitor/core');
@@ -451,7 +503,15 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                                 });
                                 await handleSuccess(retryPos);
                             } catch (retryErr) {
-                                console.error("🚫 GPS activation or retry failed:", retryErr);
+                                console.warn("🚫 GPS activation or retry failed, checking final cached fallback...");
+                                try {
+                                    const lastPos = await Geolocation.getLastKnownPosition();
+                                    if (lastPos) {
+                                        await handleSuccess(lastPos);
+                                        return;
+                                    }
+                                } catch (e) {}
+                                console.error("🚫 GPS activation failed completely:", retryErr);
                                 setShowSettingsButton(true);
                                 handleError({ code: 2, message: "⚠️ Device Location is OFF or unavailable. Please enable GPS in Settings and retry." });
                             }
@@ -466,14 +526,33 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                     navigator.geolocation.getCurrentPosition(
                         handleSuccess,
                         (fallbackErr) => {
-                            console.warn("⚠️ Capacitor browser fallback high accuracy failed, trying low accuracy...");
-                            navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
-                                enableHighAccuracy: false,
-                                timeout: 5000,
-                                maximumAge: 300000
-                            });
+                            console.warn("⚠️ Capacitor browser fallback high accuracy failed, checking reason...");
+                            const isWebTimeout = fallbackErr.code === 3 || 
+                                (fallbackErr.message && fallbackErr.message.toLowerCase().includes("timeout"));
+
+                            if (!isWebTimeout) {
+                                handleError(fallbackErr);
+                                return;
+                            }
+
+                            navigator.geolocation.getCurrentPosition(
+                                handleSuccess,
+                                (webFallbackErr) => {
+                                    console.warn("⚠️ Network location failed, trying cached web fallback...");
+                                    navigator.geolocation.getCurrentPosition(
+                                        handleSuccess,
+                                        handleError,
+                                        { enableHighAccuracy: false, timeout: 2000, maximumAge: Infinity }
+                                    );
+                                },
+                                {
+                                    enableHighAccuracy: false,
+                                    timeout: 6000,
+                                    maximumAge: 300000
+                                }
+                            );
                         },
-                        { enableHighAccuracy: true, timeout: 3000, maximumAge: 0 }
+                        { enableHighAccuracy: true, timeout: 2500, maximumAge: 0 }
                     );
                 } else {
                     handleError({ code: 2, message: "Geolocation not supported" });
@@ -485,14 +564,33 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 navigator.geolocation.getCurrentPosition(
                     handleSuccess,
                     (webErr) => {
-                        console.warn("⚠️ Web high accuracy failed, trying low accuracy...");
-                        navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
-                            enableHighAccuracy: false,
-                            timeout: 5000,
-                            maximumAge: 300000
-                        });
+                        console.warn("⚠️ Web high accuracy failed, checking reason...");
+                        const isWebTimeout = webErr.code === 3 || 
+                            (webErr.message && webErr.message.toLowerCase().includes("timeout"));
+
+                        if (!isWebTimeout) {
+                            handleError(webErr);
+                            return;
+                        }
+
+                        navigator.geolocation.getCurrentPosition(
+                            handleSuccess,
+                            (webFallbackErr) => {
+                                console.warn("⚠️ Web platform fallback failed, trying cached web fallback...");
+                                navigator.geolocation.getCurrentPosition(
+                                    handleSuccess,
+                                    handleError,
+                                    { enableHighAccuracy: false, timeout: 2000, maximumAge: Infinity }
+                                );
+                            },
+                            {
+                                enableHighAccuracy: false,
+                                timeout: 6000,
+                                maximumAge: 300000
+                            }
+                        );
                     },
-                    { enableHighAccuracy: true, timeout: 3000, maximumAge: 0 }
+                    { enableHighAccuracy: true, timeout: 2500, maximumAge: 0 }
                 );
             } else {
                 handleError({ code: 2, message: "Geolocation not supported" });
