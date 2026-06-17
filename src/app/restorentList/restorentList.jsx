@@ -806,6 +806,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
         setTimeout(() => setIsRouting(false), 2000);
     };
     const handleClicke = (name) => {
+        setIsRouting(true);
         // Save scroll position immediately before navigating away
         if (typeof window !== 'undefined') {
             sessionStorage.setItem("restaurantListScrollY", window.scrollY);
@@ -891,7 +892,7 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
 
     };
 
-    if (loading && !mounted) return <Loading />;
+    if ((loading && !mounted) || isRouting) return <Loading />;
 
     return (
         <div className="restaurant-list-page" style={{ paddingBottom: '100px' }}>
@@ -1022,14 +1023,6 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 </Modal.Body>
             </Modal>
 
-            <Modal show={isRouting} centered backdrop="static" size="sm" contentClassName="location-modal-content">
-                <Modal.Body className="text-center py-4">
-                    <div className="location-loader">
-                        <Spinner animation="grow" variant="success" />
-                    </div>
-                    <div className="location-modal-title mt-2">Entering Restaurant...</div>
-                </Modal.Body>
-            </Modal>
 
             <Carousel interval={3000} className='coroselmain'>
                 <Carousel.Item className='coroselmain2'>
