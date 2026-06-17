@@ -304,39 +304,43 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                 }
 
                 if (permissions.location === 'granted') {
-                    // Try to enable GPS natively first using our custom plugin
-                    try {
-                        const { registerPlugin } = await import('@capacitor/core');
-                        const NativeSettings = registerPlugin('NativeSettings');
-                        console.log("📱 Attempting native GPS activation...");
-                        await NativeSettings.requestGpsEnable();
-                        console.log("✅ Native GPS activation successful or already enabled.");
-                    } catch (gpsEnableErr) {
-                        console.warn("⚠️ Native GPS activation failed/cancelled:", gpsEnableErr);
-                    }
-
-                    // Try to get high-accuracy location first (with a reasonable timeout of 10s)
+                    // Try to get high-accuracy location first with quick timeout and cached location support
                     try {
                         const pos = await Geolocation.getCurrentPosition({
                             enableHighAccuracy: true,
-                            timeout: 10000,
-                            maximumAge: 0
+                            timeout: 2500,
+                            maximumAge: 300000
                         });
                         await handleSuccess(pos);
                     } catch (gpsErr) {
                         console.warn("🚫 High accuracy GPS failed, trying low accuracy fallback:", gpsErr);
                         try {
-                            // Fallback to low-accuracy (faster, uses network/Wi-Fi positioning)
+                            // Fallback to low-accuracy (faster, network positioning)
                             const pos = await Geolocation.getCurrentPosition({
                                 enableHighAccuracy: false,
-                                timeout: 5000,
-                                maximumAge: 0
+                                timeout: 3000,
+                                maximumAge: 300000
                             });
                             await handleSuccess(pos);
                         } catch (fallbackErr) {
-                            console.warn("🚫 Low accuracy fallback also failed:", fallbackErr);
-                            setShowSettingsButton(true);
-                            handleError({ code: 2, message: "⚠️ Device Location is OFF or unavailable. Please enable GPS in Settings and retry." });
+                            console.warn("🚫 Low accuracy fallback failed. Device location might be OFF. Attempting GPS activation...");
+                            // Try to enable GPS natively since both failed (meaning Location is likely OFF)
+                            try {
+                                const { registerPlugin } = await import('@capacitor/core');
+                                const NativeSettings = registerPlugin('NativeSettings');
+                                await NativeSettings.requestGpsEnable();
+                                // Retry one last time after activation request
+                                const retryPos = await Geolocation.getCurrentPosition({
+                                    enableHighAccuracy: false,
+                                    timeout: 4000,
+                                    maximumAge: 0
+                                });
+                                await handleSuccess(retryPos);
+                            } catch (retryErr) {
+                                console.error("🚫 GPS activation or retry failed:", retryErr);
+                                setShowSettingsButton(true);
+                                handleError({ code: 2, message: "⚠️ Device Location is OFF or unavailable. Please enable GPS in Settings and retry." });
+                            }
                         }
                     }
                 } else {
