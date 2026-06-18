@@ -114,7 +114,7 @@ export default function VivaMenuList() {
   }, []);
 
   // ✅ Corrected Loading placement
-  if (loading || buttonStatusLoading) return <Loading />;
+  if (loading) return <Loading />;
 
   return (
     <div className="restaurant-page-bg container mt-4">
@@ -203,9 +203,9 @@ export default function VivaMenuList() {
           ></i>
         </div>
 
-      
 
-      
+
+
 
         <div className="toggle-group d-flex align-items-center">
           {/* All Button */}
@@ -236,26 +236,26 @@ export default function VivaMenuList() {
           </button>
         </div>
 
-        
+
       </div>
 
-      
-      
-      
+
+
+
       <div className="sort-text-container">
-        <button 
+        <button
           className={`sort-text-btn ${sortOrder === 'default' ? 'active-sort' : ''}`}
           onClick={() => setSortOrder('default')}
         >
           All
         </button>
-        <button 
+        <button
           className={`sort-text-btn ${sortOrder === 'low-to-high' ? 'active-sort' : ''}`}
           onClick={() => setSortOrder('low-to-high')}
         >
           Low Price to High Price
         </button>
-        <button 
+        <button
           className={`sort-text-btn ${sortOrder === 'high-to-low' ? 'active-sort' : ''}`}
           onClick={() => setSortOrder('high-to-low')}
         >
@@ -270,27 +270,27 @@ export default function VivaMenuList() {
 
           return matchesSearch && matchesType && isActive;
         })
-        .sort((a, b) => {
-          const priceA = typeof a.price === 'string' ? parseFloat(a.price.replace(/[^0-9.]/g, '')) : a.price;
-          const priceB = typeof b.price === 'string' ? parseFloat(b.price.replace(/[^0-9.]/g, '')) : b.price;
-          if (sortOrder === 'low-to-high') return priceA - priceB;
-          if (sortOrder === 'high-to-low') return priceB - priceA;
-          return 0;
-        })
-        .map((item) => (
-          <ProductCard
-            key={item.id}
-            item={item}
-            name={item.name}
-            symbol={item.symbol}
-            price={item.price}
-            button={item.button}
-            onAddToCart={addToCart}
-            disabled={!restaurantActive}
-            image={item.image}
+          .sort((a, b) => {
+            const priceA = typeof a.price === 'string' ? parseFloat(a.price.replace(/[^0-9.]/g, '')) : a.price;
+            const priceB = typeof b.price === 'string' ? parseFloat(b.price.replace(/[^0-9.]/g, '')) : b.price;
+            if (sortOrder === 'low-to-high') return priceA - priceB;
+            if (sortOrder === 'high-to-low') return priceB - priceA;
+            return 0;
+          })
+          .map((item) => (
+            <ProductCard
+              key={item.id}
+              item={item}
+              name={item.name}
+              symbol={item.symbol}
+              price={item.price}
+              button={item.button}
+              onAddToCart={addToCart}
+              disabled={!restaurantActive}
+              image={item.image}
 
-          />
-        ))}
+            />
+          ))}
         {Data.filter((item) => {
           const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
           const matchesType = typeFilter === "" || item.type === typeFilter;

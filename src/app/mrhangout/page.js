@@ -26,7 +26,7 @@ export default function MrhangoutMenuLite() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [sortOrder, setSortOrder] = useState('default'); // 'default', 'low-to-high', 'high-to-low'
-  
+
   const categories = ['All', ...new Set(Data.map(item => item.category).filter(Boolean))];
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export default function MrhangoutMenuLite() {
     showToast("ITEM ADDED", "success");
   };
 
-  if (loading || buttonStatusLoading) return <Loading />;
+  if (loading) return <Loading />;
 
   return (
     <div className="kushas-page container mt-4">
@@ -135,8 +135,8 @@ export default function MrhangoutMenuLite() {
       </button>
 
       {/* Sidebar Overlay */}
-      <div 
-        className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`} 
+      <div
+        className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`}
         onClick={() => setIsSidebarOpen(false)}
       ></div>
 
@@ -146,9 +146,9 @@ export default function MrhangoutMenuLite() {
         <h3>FIND OUT</h3>
         <ul>
           {categories.map(cat => (
-            <li 
-              key={cat} 
-              className={categoryFilter === cat ? 'active' : ''} 
+            <li
+              key={cat}
+              className={categoryFilter === cat ? 'active' : ''}
               onClick={() => { setCategoryFilter(cat); setIsSidebarOpen(false); }}
             >
               {cat}
@@ -246,9 +246,9 @@ export default function MrhangoutMenuLite() {
           ></i>
         </div>
 
-      
 
-      
+
+
 
         <div className="toggle-group d-flex align-items-center">
           {/* All Button */}
@@ -279,26 +279,26 @@ export default function MrhangoutMenuLite() {
           </button>
         </div>
 
-        
+
       </div>
 
-      
-      
-      
+
+
+
       <div className="sort-text-container">
-        <button 
+        <button
           className={`sort-text-btn ${sortOrder === 'default' ? 'active-sort' : ''}`}
           onClick={() => setSortOrder('default')}
         >
           All
         </button>
-        <button 
+        <button
           className={`sort-text-btn ${sortOrder === 'low-to-high' ? 'active-sort' : ''}`}
           onClick={() => setSortOrder('low-to-high')}
         >
           Low Price to High Price
         </button>
-        <button 
+        <button
           className={`sort-text-btn ${sortOrder === 'high-to-low' ? 'active-sort' : ''}`}
           onClick={() => setSortOrder('high-to-low')}
         >
@@ -314,24 +314,24 @@ export default function MrhangoutMenuLite() {
 
           return matchesSearch && matchesType && isActive && matchesCategory;
         })
-        .sort((a, b) => {
-          if (sortOrder === 'low-to-high') return a.price - b.price;
-          if (sortOrder === 'high-to-low') return b.price - a.price;
-          return 0;
-        })
-        .map(item => (
-          <ProductCard
-            key={item.id}
-            item={item}
-            name={item.name}
-            symbol={item.symbol}
-            price={item.price}
-            button={item.button}
-            onAddToCart={addToCart}
-            disabled={!restaurantActive}
-            image={item.image}
-          />
-        ))}
+          .sort((a, b) => {
+            if (sortOrder === 'low-to-high') return a.price - b.price;
+            if (sortOrder === 'high-to-low') return b.price - a.price;
+            return 0;
+          })
+          .map(item => (
+            <ProductCard
+              key={item.id}
+              item={item}
+              name={item.name}
+              symbol={item.symbol}
+              price={item.price}
+              button={item.button}
+              onAddToCart={addToCart}
+              disabled={!restaurantActive}
+              image={item.image}
+            />
+          ))}
         {Data.filter((item) => {
           const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
           const matchesType = typeFilter === '' || item.type === typeFilter;

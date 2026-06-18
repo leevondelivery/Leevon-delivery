@@ -52,6 +52,7 @@ export const viewport = {
 
 import GlobalServiceCheck from './components/GlobalServiceCheck';
 import BackButtonHandler from './components/BackButtonHandler';
+import TreeBanner from './components/TreeBanner';
 
 export default function RootLayout({ children }) {
   return (
@@ -63,6 +64,7 @@ export default function RootLayout({ children }) {
           <AuthInitializer>
             <GlobalServiceCheck />
             <BackButtonHandler />
+            <TreeBanner />
             {children}
             <Navbar />
           </AuthInitializer>

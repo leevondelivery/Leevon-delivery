@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from "next/navigation";
+import { Modal } from 'react-bootstrap';
 import axios from 'axios';
 import Script from 'next/script';
 import Loading from '../loading/page';
@@ -16,6 +17,7 @@ import { restList } from '../restorentList/restorentDtata';
 export default function Cart() {
   const router = useRouter();
   const [cartItems, setCartItems] = useState([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [itemTotals, setItemTotals] = useState({});
   const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState({});
@@ -355,6 +357,11 @@ export default function Cart() {
     }
   };
 
+  const handleSuccessClose = () => {
+    setShowSuccessModal(false);
+    router.push("/finalorderstatuses");
+  };
+
   const placeOrder = async () => {
     if (cartItems.length === 0) {
       setPopup({ show: true, message: "Cart is empty", isSuccess: false });
@@ -456,12 +463,9 @@ export default function Cart() {
             });
 
             if (verifyRes.data.success) {
-              showToast('Order Placed Successfully!', 'success');
-
-              // Auto-save removed as per request
-
+              setLoading(false);
               clear();
-              router.push("/finalorderstatuses");
+              setShowSuccessModal(true);
             } else {
               setLoading(false);
               showToast(`Order verification failed: ${verifyRes.data.message}`, 'danger');
@@ -507,6 +511,46 @@ export default function Cart() {
         />
       )}
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
+
+      {/* Eco Success Modal */}
+      <Modal 
+        show={showSuccessModal} 
+        onHide={handleSuccessClose} 
+        centered 
+        backdrop="static" 
+        keyboard={false} 
+        contentClassName="eco-success-modal-content"
+      >
+        <Modal.Body className="text-center py-5 px-4 eco-success-modal-body">
+          <div className="eco-success-icon-container">
+            <div className="eco-success-icon-ring"></div>
+            <i className="fas fa-seedling eco-success-icon"></i>
+          </div>
+          
+          <h3 className="eco-success-title">Order Placed! 🎉</h3>
+          
+          <div className="eco-success-divider"></div>
+          
+          <p className="eco-success-subtitle">
+            You didn&apos;t just order delicious food...
+          </p>
+          
+          <h4 className="eco-success-highlight">
+            🌱 You Planted a Tree! 🌲
+          </h4>
+          
+          <p className="eco-success-description">
+            Thank you for helping us restore our green cover and saving the universe, one order at a time! 🌍✨
+          </p>
+          
+          <button 
+            className="eco-success-btn" 
+            onClick={handleSuccessClose}
+          >
+            Track Order & View Details
+          </button>
+        </Modal.Body>
+      </Modal>
 
       <div className="cart-header">
         <div>
