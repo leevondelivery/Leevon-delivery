@@ -83,8 +83,8 @@
 
 .styled-input {
     width: 100%;
-    padding: 12px 20px 12px 50px;
-    /* Left padding for icon */
+    padding: 12px 40px 12px 50px;
+    /* Left padding for icon, right padding for eye toggle */
     border-radius: 50px;
     border: none;
     outline: none;
@@ -92,6 +92,25 @@
     color: #555;
     background-color: #fff;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.password-toggle-styled {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    z-index: 10;
+    color: #888;
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 1.1rem;
+    padding: 0;
+}
+
+.password-toggle-styled:hover {
+    color: #1a1a1a;
 }
 
 .styled-input::placeholder {

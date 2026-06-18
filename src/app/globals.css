@@ -270,3 +270,9 @@ body {
         line-height: 1.3;
     }
 }
+
+/* Hide default Microsoft Edge/IE password reveal and clear options to avoid duplicate eye icons */
+input::-ms-reveal,
+input::-ms-clear {
+    display: none !important;
+}

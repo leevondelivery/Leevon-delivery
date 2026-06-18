@@ -14,12 +14,13 @@ export default function LoginForm({ handleFPClick, handleSignUp }) {
     const dispatch = useDispatch();
     const [inputName, setInputName] = useState('');
     const [inputEmail, setInputEmail] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(true);
     const [popup, setPopup] = useState({ show: false, message: '', isSuccess: false });
 
     // 1. Check for existing session on load
     useEffect(() => {
-        // Aggressive Cleanup of potential Recaptcha leftovers from other pages
+        
         try {
             const badges = document.querySelectorAll('.grecaptcha-badge');
             badges.forEach(badge => badge.remove());
@@ -216,12 +217,21 @@ export default function LoginForm({ handleFPClick, handleSignUp }) {
                         </svg>
                     </div>
                     <input
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         placeholder="Password"
                         value={inputEmail}
                         onChange={(e) => setInputEmail(e.target.value)}
                         className="custom-input"
                     />
+                    {inputEmail && (
+                        <button
+                            type="button"
+                            className="password-toggle"
+                            onClick={() => setShowPassword(!showPassword)}
+                        >
+                            <i className={`fa-solid ${showPassword ? 'fa-eye' : 'fa-eye-slash'}`}></i>
+                        </button>
+                    )}
                 </div>
 
                 <div
