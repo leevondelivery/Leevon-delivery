@@ -160,6 +160,10 @@ export default function LoginForm({ handleFPClick, handleSignUp }) {
                     message={popup.message}
                     isSuccess={popup.isSuccess}
                     buttonText={popup.redirectToSignup ? "Create New Account" : (popup.redirectAfter ? "Continue" : null)}
+                    showRetry={popup.redirectToSignup}
+                    onRetry={() => {
+                        setPopup({ ...popup, show: false });
+                    }}
                     onClose={() => {
                         setPopup({ ...popup, show: false });
                         if (popup.redirectToSignup) {
