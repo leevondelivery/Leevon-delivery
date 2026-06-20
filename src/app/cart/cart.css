@@ -406,3 +406,144 @@ body {
     font-weight: 500;
     font-size: 1.15rem;
 }
+
+/* Eco Success Modal Styles */
+.eco-success-modal-content {
+    background-color: #f3f9f4 !important;
+    border-radius: 30px !important;
+    border: none !important;
+    overflow: hidden;
+    box-shadow: 0 15px 40px rgba(27, 77, 44, 0.18) !important;
+    max-width: 380px;
+    margin: 0 auto;
+}
+
+.eco-success-modal-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.eco-success-icon-container {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    background-color: #2e6f40;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 20px rgba(46, 111, 64, 0.3);
+}
+
+.eco-success-icon-ring {
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    border: 2px dashed #2e6f40;
+    border-radius: 50%;
+    opacity: 0.5;
+    animation: rotateRing 15s linear infinite;
+}
+
+.eco-success-icon {
+    font-size: 40px;
+    color: #fff;
+    animation: plantGrow 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.eco-success-title {
+    font-family: var(--font-playfair), 'Playfair Display', serif;
+    font-weight: 800;
+    font-size: 1.8rem;
+    color: #1b4d2c;
+    margin-bottom: 10px;
+}
+
+.eco-success-divider {
+    width: 60px;
+    height: 3px;
+    background-color: #7bed9f;
+    border-radius: 2px;
+    margin: 10px auto 20px auto;
+}
+
+.eco-success-subtitle {
+    font-family: var(--font-poppins), 'Poppins', sans-serif;
+    font-weight: 500;
+    font-size: 0.95rem;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.eco-success-highlight {
+    font-family: var(--font-poppins), 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: #2e6f40;
+    margin-bottom: 15px;
+    background-color: rgba(46, 111, 64, 0.1);
+    padding: 8px 16px;
+    border-radius: 15px;
+    border: 1px solid rgba(46, 111, 64, 0.15);
+    display: inline-block;
+}
+
+.eco-success-description {
+    font-family: var(--font-poppins), 'Poppins', sans-serif;
+    font-weight: 400;
+    font-size: 0.88rem;
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 30px;
+    padding: 0 10px;
+}
+
+.eco-success-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #2e6f40, #1b4d2c);
+    color: white;
+    padding: 14px 20px;
+    border-radius: 25px;
+    font-weight: 600;
+    font-family: var(--font-poppins), 'Poppins', sans-serif;
+    font-size: 0.95rem;
+    border: none;
+    box-shadow: 0 6px 15px rgba(27, 77, 44, 0.25);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.eco-success-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(27, 77, 44, 0.35);
+}
+
+.eco-success-btn:active {
+    transform: translateY(0);
+}
+
+@keyframes rotateRing {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes plantGrow {
+    from {
+        transform: scale(0) translateY(10px);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}

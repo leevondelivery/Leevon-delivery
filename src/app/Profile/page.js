@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { logoutUser } from "lib/features/userSlice";
 import Loading from "../loading/page";
+import { Modal } from "react-bootstrap";
 
 import './profile.css';
 
@@ -13,6 +14,11 @@ export default function Profile() {
     const dispatch = useDispatch();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -58,33 +64,34 @@ export default function Profile() {
         }, 800);
     };
 
-    const handleDeleteAccount = async () => {
+    const triggerDeleteAccount = () => {
+        setShowDeleteModal(true);
+    };
+
+    const handleDeleteAccountConfirm = async () => {
+        setShowDeleteModal(false);
         const userId = localStorage.getItem("userId");
         if (!userId) return;
 
-        const confirmDelete = window.confirm(
-            "⚠️ PERMANENT ACTION\n\nAre you sure you want to delete your account? This will permanently erase your order history and profile. This cannot be undone."
-        );
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/users/${userId}`, {
+                method: 'DELETE',
+            });
 
-        if (confirmDelete) {
-            setLoading(true);
-            try {
-                const res = await fetch(`/api/users/${userId}`, {
-                    method: 'DELETE',
-                });
-
-                if (res.ok) {
-                    alert("Account Deleted Successfully. We're sorry to see you go.");
-                    handleLogout();
-                } else {
-                    alert("Error deleting account. Please contact support.");
-                    setLoading(false);
-                }
-            } catch (err) {
-                console.error("Delete account error", err);
-                alert("Server error. Please try again later.");
+            if (res.ok) {
                 setLoading(false);
+                setShowSuccessModal(true);
+            } else {
+                setErrorMessage("Error deleting account. Please contact support.");
+                setLoading(false);
+                setShowErrorModal(true);
             }
+        } catch (err) {
+            console.error("Delete account error", err);
+            setErrorMessage("Server error. Please try again later.");
+            setLoading(false);
+            setShowErrorModal(true);
         }
     };
 
@@ -208,7 +215,7 @@ export default function Profile() {
                         Need to close your account?
                     </p>
                     <button 
-                        onClick={handleDeleteAccount}
+                        onClick={triggerDeleteAccount}
                         style={{
                             width: '100%',
                             padding: '12px',
@@ -226,6 +233,57 @@ export default function Profile() {
                 </div>
 
             </div>
+
+            {/* Delete Confirmation Modal */}
+            <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered backdrop="static" keyboard={false} size="sm" contentClassName="delete-modal-content">
+                <Modal.Body className="text-center py-4">
+                    <div className="delete-modal-icon-container warning">
+                        <i className="fas fa-exclamation-triangle delete-modal-icon"></i>
+                    </div>
+                    <h5 className="delete-modal-title mt-3">Delete Account?</h5>
+                    <p className="delete-modal-text">
+                        This action is permanent and cannot be undone. All your order history, coins, and profile details will be permanently erased.
+                    </p>
+                    <div className="d-flex flex-column gap-2 mt-4">
+                        <button className="delete-modal-btn danger-btn w-100" onClick={handleDeleteAccountConfirm}>
+                            Permanently Delete
+                        </button>
+                        <button className="delete-modal-btn secondary-btn w-100" onClick={() => setShowDeleteModal(false)}>
+                            Cancel
+                        </button>
+                    </div>
+                </Modal.Body>
+            </Modal>
+
+            {/* Delete Success Modal */}
+            <Modal show={showSuccessModal} centered backdrop="static" keyboard={false} size="sm" contentClassName="delete-modal-content">
+                <Modal.Body className="text-center py-4">
+                    <div className="delete-modal-icon-container success">
+                        <i className="fas fa-check-circle delete-modal-icon"></i>
+                    </div>
+                    <h5 className="delete-modal-title mt-3">Account Deleted</h5>
+                    <p className="delete-modal-text">
+                        Your account has been deleted successfully. We're sorry to see you go.
+                    </p>
+                    <button className="delete-modal-btn primary-btn w-100 mt-4" onClick={() => { setShowSuccessModal(false); handleLogout(); }}>
+                        OK
+                    </button>
+                </Modal.Body>
+            </Modal>
+
+            {/* Delete Error Modal */}
+            <Modal show={showErrorModal} onHide={() => setShowErrorModal(false)} centered backdrop="static" keyboard={false} size="sm" contentClassName="delete-modal-content">
+                <Modal.Body className="text-center py-4">
+                    <div className="delete-modal-icon-container danger">
+                        <i className="fas fa-times-circle delete-modal-icon"></i>
+                    </div>
+                    <h5 className="delete-modal-title mt-3">Error</h5>
+                    <p className="delete-modal-text">{errorMessage}</p>
+                    <button className="delete-modal-btn secondary-btn w-100 mt-4" onClick={() => setShowErrorModal(false)}>
+                        OK
+                    </button>
+                </Modal.Body>
+            </Modal>
         </div>
     )
 }

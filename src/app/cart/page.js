@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from "next/navigation";
+import { Modal } from 'react-bootstrap';
 import axios from 'axios';
 import Script from 'next/script';
 import Loading from '../loading/page';
@@ -9,10 +10,14 @@ import { showToast } from '../../toaster/page';
 import { getCoinsEarned } from 'lib/coinConfig';
 import './cart.css';
 import ErrorPopup from '../login/ErrorPopup';
+import { getDistance } from "geolib";
+import { getExactDistance } from '../actions/delivery';
+import { restList } from '../restorentList/restorentDtata';
 
 export default function Cart() {
   const router = useRouter();
   const [cartItems, setCartItems] = useState([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [itemTotals, setItemTotals] = useState({});
   const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState({});
@@ -32,6 +37,61 @@ export default function Cart() {
 
   const aa = "gg";
   const [expandAddresses, setExpandAddresses] = useState(false);
+  const [customerLat, setCustomerLat] = useState(null);
+  const [customerLng, setCustomerLng] = useState(null);
+
+  const calculateExactDistanceForCart = async (uLat, uLng, cartRestName) => {
+    if (!uLat || !uLng || !cartRestName) return;
+
+    const restaurant = restList.find(
+      r => r.name.toLowerCase().trim() === cartRestName.toLowerCase().trim()
+    );
+
+    if (!restaurant) {
+      console.warn("Could not find restaurant in restList:", cartRestName);
+      return;
+    }
+
+    try {
+      console.log(`🌐 Cart: Calculating exact road distance to ${restaurant.name}...`);
+      const data = await getExactDistance(
+        { lat: parseFloat(uLat), lng: parseFloat(uLng) },
+        { lat: restaurant.lat, lng: restaurant.lng }
+      );
+      
+      let dist = null;
+      if (data && data.km) {
+        dist = parseFloat(data.km);
+      } else {
+        const distMeters = getDistance(
+          { latitude: parseFloat(uLat), longitude: parseFloat(uLng) },
+          { latitude: restaurant.lat, longitude: restaurant.lng }
+        );
+        dist = parseFloat((distMeters / 1000).toFixed(1));
+      }
+
+      if (dist !== null) {
+        console.log(`✅ Exact road distance calculated: ${dist} km`);
+        setDistance(dist);
+        localStorage.setItem("currentRestaurantDistance", dist);
+        localStorage.setItem("currentRestaurantName", restaurant.name);
+
+        const savedDistances = localStorage.getItem("allRestaurantDistances");
+        const distanceData = savedDistances ? JSON.parse(savedDistances) : {};
+        distanceData[restaurant.name] = dist;
+        localStorage.setItem("allRestaurantDistances", JSON.stringify(distanceData));
+
+        if (dist <= 3) {
+          setDeliveryCharge(25);
+        } else {
+          const extraKm = Math.ceil(dist - 3);
+          setDeliveryCharge(25 + (extraKm * 5));
+        }
+      }
+    } catch (err) {
+      console.error("Error calculating exact distance in cart:", err);
+    }
+  };
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
@@ -104,6 +164,10 @@ export default function Cart() {
     setUserName(localStorage.getItem("userName") || "");
     setUserEmail(localStorage.getItem("userEmail") || "");
     setUserPhone(localStorage.getItem("userPhone") || "");
+    const lat = localStorage.getItem("customerLat");
+    const lng = localStorage.getItem("customerLng");
+    setCustomerLat(lat || null);
+    setCustomerLng(lng || null);
   }, []);
 
   // ✅ Check for active orders
@@ -181,6 +245,7 @@ export default function Cart() {
   const platformFeeGst = Math.round(platformFee * 0.18); // Round 18% Platform Fee GST
   const gstAmount = foodGst + deliveryGst; // Combine ALL GST into one
   const grandTotal = Math.round(totalPrice + gstAmount + deliveryCharge + platformFee); // Round Grand Total
+  const isLocationMissing = !customerLat || !customerLng || distance === 0;
 
   const clear = () => {
     localStorage.removeItem('cart');
@@ -267,6 +332,8 @@ export default function Cart() {
       if (addr.lat && addr.lng) {
         localStorage.setItem("customerLat", addr.lat);
         localStorage.setItem("customerLng", addr.lng);
+        setCustomerLat(addr.lat);
+        setCustomerLng(addr.lng);
       }
 
       showToast(`Address (${addr.label}) loaded!`, "success");
@@ -288,6 +355,11 @@ export default function Cart() {
       console.error("Delete error:", err);
       showToast("Failed to remove address", "danger");
     }
+  };
+
+  const handleSuccessClose = () => {
+    setShowSuccessModal(false);
+    router.push("/finalorderstatuses");
   };
 
   const placeOrder = async () => {
@@ -391,12 +463,9 @@ export default function Cart() {
             });
 
             if (verifyRes.data.success) {
-              showToast('Order Placed Successfully!', 'success');
-
-              // Auto-save removed as per request
-
+              setLoading(false);
               clear();
-              router.push("/finalorderstatuses");
+              setShowSuccessModal(true);
             } else {
               setLoading(false);
               showToast(`Order verification failed: ${verifyRes.data.message}`, 'danger');
@@ -409,7 +478,7 @@ export default function Cart() {
         prefill: {
           name: userName,
           email: userEmail,
-          contact: userPhone || "9999999999"
+          contact: userPhone || ""
         },
         theme: { color: "#3399cc" },
         modal: {
@@ -442,6 +511,46 @@ export default function Cart() {
         />
       )}
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
+
+      {/* Eco Success Modal */}
+      <Modal 
+        show={showSuccessModal} 
+        onHide={handleSuccessClose} 
+        centered 
+        backdrop="static" 
+        keyboard={false} 
+        contentClassName="eco-success-modal-content"
+      >
+        <Modal.Body className="text-center py-5 px-4 eco-success-modal-body">
+          <div className="eco-success-icon-container">
+            <div className="eco-success-icon-ring"></div>
+            <i className="fas fa-seedling eco-success-icon"></i>
+          </div>
+          
+          <h3 className="eco-success-title">Order Placed! 🎉</h3>
+          
+          <div className="eco-success-divider"></div>
+          
+          <p className="eco-success-subtitle">
+            You didn&apos;t just order delicious food...
+          </p>
+          
+          <h4 className="eco-success-highlight">
+            🌱 You Planted a Tree! 🌲
+          </h4>
+          
+          <p className="eco-success-description">
+            Thank you for helping us restore our green cover and saving the universe, one order at a time! 🌍✨
+          </p>
+          
+          <button 
+            className="eco-success-btn" 
+            onClick={handleSuccessClose}
+          >
+            Track Order & View Details
+          </button>
+        </Modal.Body>
+      </Modal>
 
       <div className="cart-header">
         <div>
@@ -523,7 +632,7 @@ export default function Cart() {
             <button onClick={clear} className="beige-btn-outline">Clear all</button>
             <button
               onClick={() => {
-                if (isLocationSkipped) {
+                if (isLocationMissing || isLocationSkipped) {
                   showToast("Location is required to calculate delivery charges and place order.", "danger");
                   return;
                 }
@@ -534,17 +643,17 @@ export default function Cart() {
                 setShowAddressBox(true);
               }}
               className="beige-btn-filled"
-              disabled={showAddressBox || hasActiveOrder || isLocationSkipped || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")}
+              disabled={showAddressBox || hasActiveOrder || isLocationSkipped || isLocationMissing || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")}
               title={
-                isLocationSkipped
+                isLocationMissing || isLocationSkipped
                   ? "Location required to place order"
                   : (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")
                     ? "Service Unavailable: Outside Delivery Area"
                     : (hasActiveOrder ? "You have an active order" : "Place order")
               }
-              style={(hasActiveOrder || isLocationSkipped || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+              style={(hasActiveOrder || isLocationSkipped || isLocationMissing || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
             >
-              {hasActiveOrder ? "Order in Progress" : (isLocationSkipped ? "Location Required" : "Place the order")}
+              {hasActiveOrder ? "Order in Progress" : (isLocationMissing || isLocationSkipped ? "Location Required" : "Place the order")}
             </button>
           </div>
 
@@ -679,19 +788,19 @@ export default function Cart() {
               <button
                 onClick={placeOrder}
                 className="confirm-btn"
-                disabled={loading || hasActiveOrder || isLocationSkipped || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")}
+                disabled={loading || hasActiveOrder || isLocationSkipped || isLocationMissing || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")}
                 title={
-                  isLocationSkipped
+                  isLocationMissing || isLocationSkipped
                     ? "Location required to place order"
                     : (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")
                       ? "Service Unavailable: Outside Delivery Area"
                       : (hasActiveOrder ? "Cannot proceed with active order" : "Confirm Order")
                 }
-                style={(hasActiveOrder || isLocationSkipped || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                style={(hasActiveOrder || isLocationSkipped || isLocationMissing || (typeof window !== 'undefined' && localStorage.getItem("isServiceAvailable") === "false")) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
               >
                 {hasActiveOrder
                   ? "Order already in progress"
-                  : (loading ? <Loading /> : `Confirm order and pay ₹${grandTotal.toFixed(0)}`)
+                  : (isLocationMissing || isLocationSkipped ? "Location Required" : (loading ? <Loading /> : `Confirm order and pay ₹${grandTotal.toFixed(0)}`))
                 }
               </button>
             </div>

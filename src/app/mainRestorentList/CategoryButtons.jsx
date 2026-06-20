@@ -4,12 +4,10 @@ import React from 'react';
 import './categoryButtons.css';
 
 const categories = [
-    /*
     { name: 'Biryani', image: '/cat_biryani.png', searchPrefix: 'biryani' },
     { name: 'Noodles', image: '/cat_noodles.png', searchPrefix: 'noodles' },
     { name: 'Pasta', image: '/cat_pasta.png', searchPrefix: 'pasta' },
     { name: 'Milkshakes', image: '/cat_milkshake.png', searchPrefix: 'shake' }
-    */
 ];
 
 export default function CategoryButtons({ activeCategory, onSelect }) {

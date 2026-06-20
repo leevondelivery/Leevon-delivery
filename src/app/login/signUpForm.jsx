@@ -14,6 +14,9 @@ export default function Home({ handleBacktoLogin }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -124,11 +127,19 @@ export default function Home({ handleBacktoLogin }) {
     if (!name) newErrors.name = true;
     if (!email) newErrors.email = true;
     if (!password) newErrors.password = true;
+    if (!confirmPassword) newErrors.confirmPassword = true;
     if (!phone) newErrors.phone = true;
     if (!dateOfBirth) newErrors.dateOfBirth = true;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      return;
+    }
+
+    // Passwords match validation
+    if (password !== confirmPassword) {
+      setValidationErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match." }));
+      setErrors(prev => ({ ...prev, confirmPassword: true }));
       return;
     }
 
@@ -155,7 +166,7 @@ export default function Home({ handleBacktoLogin }) {
     try {
       // 5. Check if user already exists in DB
       const res = await axios.get(`/api/users?phone=${phone}`);
-      const userExists = res.data.length > 0 && phone !== "9999999999";
+      const userExists = res.data.length > 0;
 
       if (userExists) {
         setLoading(false);
@@ -342,19 +353,78 @@ export default function Home({ handleBacktoLogin }) {
                 </svg>
               </div>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder={errors.password ? "This field is mandatory" : "Password"}
                 onChange={(e) => {
-                  setPassword(e.target.value);
+                  const val = e.target.value;
+                  setPassword(val);
                   if (errors.password) setErrors(prev => ({ ...prev, password: false }));
                   if (validationErrors.password) setValidationErrors(prev => ({ ...prev, password: "" }));
+                  
+                  // Check matches dynamically if confirmPassword is typed
+                  if (confirmPassword && val !== confirmPassword) {
+                    setValidationErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match." }));
+                    setErrors(prev => ({ ...prev, confirmPassword: true }));
+                  } else {
+                    setValidationErrors(prev => ({ ...prev, confirmPassword: "" }));
+                    setErrors(prev => ({ ...prev, confirmPassword: false }));
+                  }
                 }}
                 value={password}
                 className={`styled-input ${errors.password ? 'error-border' : ''}`}
                 disabled={otpVerified}
               />
+              {password && (
+                <button
+                  type="button"
+                  className="password-toggle-styled"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  <i className={`fa-solid ${showPassword ? 'fa-eye' : 'fa-eye-slash'}`}></i>
+                </button>
+              )}
             </div>
             {validationErrors.password && <p className="validation-message">{validationErrors.password}</p>}
+
+            {/* Confirm Password */}
+            <div className="input-group-styled">
+              <div className="input-icon-wrapper">
+                <svg viewBox="0 0 24 24">
+                  <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3 3.1-3 1.71 0 3.1 1.29 3.1 3v2z" />
+                </svg>
+              </div>
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder={errors.confirmPassword ? "This field is mandatory" : "Confirm password"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setConfirmPassword(val);
+                  if (errors.confirmPassword) setErrors(prev => ({ ...prev, confirmPassword: false }));
+                  
+                  // Check matches dynamically
+                  if (val && password && val !== password) {
+                    setValidationErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match." }));
+                    setErrors(prev => ({ ...prev, confirmPassword: true }));
+                  } else {
+                    setValidationErrors(prev => ({ ...prev, confirmPassword: "" }));
+                    setErrors(prev => ({ ...prev, confirmPassword: false }));
+                  }
+                }}
+                value={confirmPassword}
+                className={`styled-input ${errors.confirmPassword ? 'error-border' : ''}`}
+                disabled={otpVerified}
+              />
+              {confirmPassword && (
+                <button
+                  type="button"
+                  className="password-toggle-styled"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <i className={`fa-solid ${showConfirmPassword ? 'fa-eye' : 'fa-eye-slash'}`}></i>
+                </button>
+              )}
+            </div>
+            {validationErrors.confirmPassword && <p className="validation-message">{validationErrors.confirmPassword}</p>}
 
             {/* Email */}
             <div className="input-group-styled">

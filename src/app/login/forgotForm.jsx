@@ -11,6 +11,9 @@ import { showToast } from '../../toaster/page';
 export default function UpdateEmail({ handleBacktoLogin }) {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState(""); // Renamed from email to password
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [result, setResult] = useState(null);
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -144,7 +147,8 @@ export default function UpdateEmail({ handleBacktoLogin }) {
 
   const handleUpdatePassword = async () => {
     if (!otpVerified) return setPopup({ show: true, message: "Verify OTP first", isSuccess: false });
-    if (!phone || !password) return setPopup({ show: true, message: "Enter phone and password", isSuccess: false });
+    if (!phone || !password || !confirmPassword) return setPopup({ show: true, message: "Enter phone, password and confirm password", isSuccess: false });
+    if (password !== confirmPassword) return setPopup({ show: true, message: "Passwords do not match", isSuccess: false });
 
     setLoading(true);
     let formattedPhone = phone.trim().replace(/\D/g, ''); // Keep only digits
@@ -185,12 +189,11 @@ export default function UpdateEmail({ handleBacktoLogin }) {
       )}
 
       <div className="signup-container">
-        <div onClick={handleBacktoLogin} className="back-arrow-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" height="36px" viewBox="0 0 24 24" width="36px" fill="#333">
-            <path d="M0 0h24v24H0V0z" fill="none" />
-            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+        <button onClick={handleBacktoLogin} className="back-button-svg-profile" type="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
           </svg>
-        </div>
+        </button>
 
         <div className="signup-header" style={{ marginTop: '20px' }}>
           <h1 className="welcome-text">Forgot Password?</h1>
@@ -215,13 +218,66 @@ export default function UpdateEmail({ handleBacktoLogin }) {
           {/* Password Input */}
           <div className="input-group-styled">
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="New Password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="styled-input"
+              onChange={(e) => {
+                const val = e.target.value;
+                setPassword(val);
+                if (validationErrors.password) setValidationErrors(prev => ({ ...prev, password: "" }));
+                
+                // Check matches dynamically if confirmPassword is typed
+                if (confirmPassword && val !== confirmPassword) {
+                  setValidationErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match." }));
+                } else {
+                  setValidationErrors(prev => ({ ...prev, confirmPassword: "" }));
+                }
+              }}
+              className={`styled-input ${validationErrors.password ? 'error-border' : ''}`}
             />
+            {password && (
+              <button
+                type="button"
+                className="password-toggle-styled"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                <i className={`fa-solid ${showPassword ? 'fa-eye' : 'fa-eye-slash'}`}></i>
+              </button>
+            )}
           </div>
+          {validationErrors.password && <p className="validation-message">{validationErrors.password}</p>}
+
+          {/* Confirm Password Input */}
+          <div className="input-group-styled">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm New Password"
+              value={confirmPassword}
+              onChange={(e) => {
+                const val = e.target.value;
+                setConfirmPassword(val);
+                if (validationErrors.confirmPassword) setValidationErrors(prev => ({ ...prev, confirmPassword: "" }));
+                
+                // Check matches dynamically
+                if (val && password && val !== password) {
+                  setValidationErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match." }));
+                } else {
+                  setValidationErrors(prev => ({ ...prev, confirmPassword: "" }));
+                }
+              }}
+              className={`styled-input ${validationErrors.confirmPassword ? 'error-border' : ''}`}
+            />
+            {confirmPassword && (
+              <button
+                type="button"
+                className="password-toggle-styled"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                <i className={`fa-solid ${showConfirmPassword ? 'fa-eye' : 'fa-eye-slash'}`}></i>
+              </button>
+            )}
+          </div>
+          {validationErrors.confirmPassword && <p className="validation-message">{validationErrors.confirmPassword}</p>}
 
           <div style={{ marginTop: "10px", marginBottom: "10px" }}>
             {!otpSent ? (

@@ -74,7 +74,7 @@ html {
 
 .custom-input {
     width: 100%;
-    padding: 15px 20px 15px 55px;
+    padding: 15px 45px 15px 55px;
     border-radius: 50px;
     border: none;
     outline: none;
@@ -82,6 +82,25 @@ html {
     font-size: 1rem;
     color: #444;
     background: #fff;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    z-index: 10;
+    color: #888;
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 1.1rem;
+    padding: 0;
+}
+
+.password-toggle:hover {
+    color: #1a1a1a;
 }
 
 .custom-input::placeholder {

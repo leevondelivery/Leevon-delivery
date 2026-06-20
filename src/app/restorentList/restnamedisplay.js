@@ -1,8 +1,12 @@
 /* eslint-disable @next/next/no-img-element */
-import React from 'react';
+import React, { useEffect } from 'react';
 import './restnamedisplay.css';
 
 export default function RestorentDisplay(props) {
+  useEffect(() => {
+    // Reset window scroll to top when entering a restaurant page
+    window.scrollTo(0, 0);
+  }, []);
   // Normalize data whether passed as a 'data' object or individual props
   const item = props.data || props;
 

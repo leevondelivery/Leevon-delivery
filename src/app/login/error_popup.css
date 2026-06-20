@@ -88,3 +88,30 @@
 .error-retry-btn:hover {
     opacity: 0.8;
 }
+
+/* Button Group & Secondary styling */
+.error-button-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+    align-items: center;
+}
+
+.error-button-group .error-retry-btn {
+    width: 100%;
+    padding: 12px 20px;
+    box-sizing: border-box;
+}
+
+.error-retry-btn.secondary {
+    background-color: transparent;
+    color: #000;
+    border: 2px solid #000;
+    font-weight: 600;
+}
+
+.error-retry-btn.secondary:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    opacity: 1;
+}

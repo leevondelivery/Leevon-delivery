@@ -57,7 +57,7 @@ export default function PrivacyPolicy() {
             marginBottom: '32px',
             gap: '16px',
             position: 'sticky',
-            top: 0,
+            top: 'env(safe-area-inset-top, 0px)',
             backgroundColor: 'rgba(249, 250, 251, 0.95)',
             backdropFilter: 'blur(8px)',
             padding: '12px 0',

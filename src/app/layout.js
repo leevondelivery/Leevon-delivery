@@ -47,9 +47,12 @@ export const viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: '#F8F5EB',
+  viewportFit: 'cover',
 };
 
 import GlobalServiceCheck from './components/GlobalServiceCheck';
+import BackButtonHandler from './components/BackButtonHandler';
+import TreeBanner from './components/TreeBanner';
 
 export default function RootLayout({ children }) {
   return (
@@ -58,10 +61,13 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${poppins.variable} antialiased`}
       >
         <StoreProvider>
-          <AuthInitializer />
-          <GlobalServiceCheck />
-          {children}
-          <Navbar />
+          <AuthInitializer>
+            <GlobalServiceCheck />
+            <BackButtonHandler />
+            <TreeBanner />
+            {children}
+            <Navbar />
+          </AuthInitializer>
         </StoreProvider>
       </body>
     </html>

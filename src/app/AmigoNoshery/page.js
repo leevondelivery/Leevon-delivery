@@ -119,7 +119,7 @@ export default function AmigoMenuList() {
     }
   }, []);
 
-  if (loading || buttonStatusLoading) return <Loading />;
+  if (loading) return <Loading />;
 
   return (
     <div className="restaurant-page-bg container mt-4">
@@ -235,9 +235,9 @@ export default function AmigoMenuList() {
           ></i>
         </div>
 
-      
 
-      
+
+
 
         <div className="toggle-group d-flex align-items-center">
           {/* All Button */}
@@ -268,26 +268,26 @@ export default function AmigoMenuList() {
           </button>
         </div>
 
-        
+
       </div>
 
-      
-      
-      
+
+
+
       <div className="sort-text-container">
-        <button 
+        <button
           className={`sort-text-btn ${sortOrder === 'default' ? 'active-sort' : ''}`}
           onClick={() => setSortOrder('default')}
         >
           All
         </button>
-        <button 
+        <button
           className={`sort-text-btn ${sortOrder === 'low-to-high' ? 'active-sort' : ''}`}
           onClick={() => setSortOrder('low-to-high')}
         >
           Low Price to High Price
         </button>
-        <button 
+        <button
           className={`sort-text-btn ${sortOrder === 'high-to-low' ? 'active-sort' : ''}`}
           onClick={() => setSortOrder('high-to-low')}
         >
@@ -296,33 +296,33 @@ export default function AmigoMenuList() {
       </div>
       <div className="row">
         {Data.filter(item => {
-          const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
+          const matchesSearch = item.name.toLowerCase().startsWith(search.toLowerCase());
           const matchesType = typeFilter === '' || item.type === typeFilter;
           const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
           const isActive = buttonStatuses[item.id] === true;
 
           return matchesSearch && matchesType && isActive && matchesCategory;
         })
-        .sort((a, b) => {
-          if (sortOrder === 'low-to-high') return a.price - b.price;
-          if (sortOrder === 'high-to-low') return b.price - a.price;
-          return 0;
-        })
-        .map(item => (
-          <ProductCard
-            key={item.id}
-            item={item}
-            name={item.name}
-            symbol={item.symbol}
-            price={item.price}
-            button={item.button}
-            onAddToCart={addToCart}
-            disabled={!restaurantActive}
-            image={item.image}
-          />
-        ))}
+          .sort((a, b) => {
+            if (sortOrder === 'low-to-high') return a.price - b.price;
+            if (sortOrder === 'high-to-low') return b.price - a.price;
+            return 0;
+          })
+          .map(item => (
+            <ProductCard
+              key={item.id}
+              item={item}
+              name={item.name}
+              symbol={item.symbol}
+              price={item.price}
+              button={item.button}
+              onAddToCart={addToCart}
+              disabled={!restaurantActive}
+              image={item.image}
+            />
+          ))}
         {Data.filter(item => {
-          const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
+          const matchesSearch = item.name.toLowerCase().startsWith(search.toLowerCase());
           const matchesType = typeFilter === '' || item.type === typeFilter;
           const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
           const isActive = buttonStatuses[item.id] === true;
