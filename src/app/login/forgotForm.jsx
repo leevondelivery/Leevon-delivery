@@ -189,12 +189,11 @@ export default function UpdateEmail({ handleBacktoLogin }) {
       )}
 
       <div className="signup-container">
-        <div onClick={handleBacktoLogin} className="back-arrow-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" height="36px" viewBox="0 0 24 24" width="36px" fill="#333">
-            <path d="M0 0h24v24H0V0z" fill="none" />
-            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+        <button onClick={handleBacktoLogin} className="back-button-svg-profile" type="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
           </svg>
-        </div>
+        </button>
 
         <div className="signup-header" style={{ marginTop: '20px' }}>
           <h1 className="welcome-text">Forgot Password?</h1>

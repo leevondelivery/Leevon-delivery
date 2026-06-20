@@ -298,7 +298,7 @@ export default function FoodlandMenuList() {
       </div>
       <div className="row">
         {Data.filter(item => {
-          const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
+          const matchesSearch = item.name.toLowerCase().startsWith(search.toLowerCase());
           const matchesType = typeFilter === '' || item.type === typeFilter;
           const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
           const isActive = buttonStatuses[item.id] === true;
@@ -325,7 +325,7 @@ export default function FoodlandMenuList() {
             />
           ))}
         {Data.filter(item => {
-          const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
+          const matchesSearch = item.name.toLowerCase().startsWith(search.toLowerCase());
           const matchesType = typeFilter === '' || item.type === typeFilter;
           const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
           const isActive = buttonStatuses[item.id] === true;

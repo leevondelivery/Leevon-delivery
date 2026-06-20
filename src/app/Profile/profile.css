@@ -290,3 +290,99 @@
         font-size: 1rem;
     }
 }
+
+/* Delete Modal Styling */
+.delete-modal-content {
+    border-radius: 25px !important;
+    border: none !important;
+    background-color: #fff !important;
+    padding: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+}
+
+.delete-modal-icon-container {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px auto;
+}
+
+.delete-modal-icon-container.warning {
+    background-color: #fef3c7;
+}
+
+.delete-modal-icon-container.warning .delete-modal-icon {
+    color: #d97706;
+    font-size: 28px;
+}
+
+.delete-modal-icon-container.success {
+    background-color: #d1fae5;
+}
+
+.delete-modal-icon-container.success .delete-modal-icon {
+    color: #059669;
+    font-size: 32px;
+}
+
+.delete-modal-icon-container.danger {
+    background-color: #fee2e2;
+}
+
+.delete-modal-icon-container.danger .delete-modal-icon {
+    color: #dc2626;
+    font-size: 32px;
+}
+
+.delete-modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.delete-modal-text {
+    font-size: 13px;
+    color: #666;
+    margin-top: 10px;
+    line-height: 1.5;
+}
+
+.delete-modal-btn {
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.delete-modal-btn.danger-btn {
+    background-color: #dc2626;
+    color: #fff;
+}
+
+.delete-modal-btn.danger-btn:hover {
+    background-color: #b91c1c;
+}
+
+.delete-modal-btn.secondary-btn {
+    background-color: #f3f4f6;
+    color: #4b5563;
+}
+
+.delete-modal-btn.secondary-btn:hover {
+    background-color: #e5e7eb;
+}
+
+.delete-modal-btn.primary-btn {
+    background-color: #1a1a1a;
+    color: #fff;
+}
+
+.delete-modal-btn.primary-btn:hover {
+    background-color: #333;
+}

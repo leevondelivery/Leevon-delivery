@@ -264,7 +264,7 @@ export default function VivaMenuList() {
       </div>
       <div className="row">
         {Data.filter((item) => {
-          const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
+          const matchesSearch = item.name.toLowerCase().startsWith(search.toLowerCase());
           const matchesType = typeFilter === "" || item.type === typeFilter;
           const isActive = buttonStatuses[item.id] === true;
 
@@ -292,7 +292,7 @@ export default function VivaMenuList() {
             />
           ))}
         {Data.filter((item) => {
-          const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
+          const matchesSearch = item.name.toLowerCase().startsWith(search.toLowerCase());
           const matchesType = typeFilter === "" || item.type === typeFilter;
           const isActive = buttonStatuses[item.id] === true;
           return matchesSearch && matchesType && isActive;

@@ -1151,14 +1151,14 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
 
                             // 2. Check if the Restaurant itself matches criteria
                             const restaurantMatchesType = !activeType || restaurant.type === activeType;
-                            const restaurantMatchesSearch = !search || restaurant.name.toLowerCase().includes(lowerSearch);
+                            const restaurantMatchesSearch = !search || restaurant.name.toLowerCase().startsWith(lowerSearch);
                             const restaurantMatchesCategory = !categoryFilter || restaurant.name.toLowerCase().includes(lowerCategory);
 
                             // 3. Check if any ITEMS in the restaurant match criteria
                             const hasMatchingItem = Data.some(item => {
                                 if (item.restid !== Number(restaurant.id)) return false;
 
-                                const itemMatchesSearch = !search || item.name.toLowerCase().includes(lowerSearch);
+                                const itemMatchesSearch = !search || item.name.toLowerCase().startsWith(lowerSearch);
                                 const itemMatchesCategory = !categoryFilter || item.name.toLowerCase().includes(lowerCategory);
                                 const itemMatchesType = !activeType || item.type === activeType;
 
@@ -1179,7 +1179,8 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                             // If user is searching specifically for a Category OR Search text, 
                             // we prioritize the Item match.
                             if (search || categoryFilter) {
-                                return hasMatchingItem || (restaurantMatchesSearch && restaurantMatchesCategory && restaurantMatchesType);
+                                const useItemMatch = !search || search.trim().length > 1;
+                                return (useItemMatch && hasMatchingItem) || (restaurantMatchesSearch && restaurantMatchesCategory && restaurantMatchesType);
                             }
 
                             // If no text search, fallback to standard type filter
