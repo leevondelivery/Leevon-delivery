@@ -263,7 +263,7 @@ export default function Profile() {
                     </div>
                     <h5 className="delete-modal-title mt-3">Account Deleted</h5>
                     <p className="delete-modal-text">
-                        Your account has been deleted successfully. We're sorry to see you go.
+                        Your account has been deleted successfully. We&apos;re sorry to see you go.
                     </p>
                     <button className="delete-modal-btn primary-btn w-100 mt-4" onClick={() => { setShowSuccessModal(false); handleLogout(); }}>
                         OK
