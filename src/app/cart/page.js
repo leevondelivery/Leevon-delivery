@@ -512,7 +512,7 @@ export default function Cart() {
       )}
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
 
-      {/* Eco Success Modal */}
+      {/* Success Modal */}
       <Modal 
         show={showSuccessModal} 
         onHide={handleSuccessClose} 
@@ -524,23 +524,15 @@ export default function Cart() {
         <Modal.Body className="text-center py-5 px-4 eco-success-modal-body">
           <div className="eco-success-icon-container">
             <div className="eco-success-icon-ring"></div>
-            <i className="fas fa-seedling eco-success-icon"></i>
+            <i className="fas fa-check eco-success-icon"></i>
           </div>
           
-          <h3 className="eco-success-title">Order Placed! 🎉</h3>
+          <h3 className="eco-success-title">Order Placed Successfully! 🎉</h3>
           
           <div className="eco-success-divider"></div>
           
-          <p className="eco-success-subtitle">
-            You didn&apos;t just order delicious food...
-          </p>
-          
-          <h4 className="eco-success-highlight">
-            🌱 You Planted a Tree! 🌲
-          </h4>
-          
           <p className="eco-success-description">
-            Thank you for helping us restore our green cover and saving the universe, one order at a time! 🌍✨
+            Your order has been received and is being prepared. Thank you for ordering with us!
           </p>
           
           <button 
