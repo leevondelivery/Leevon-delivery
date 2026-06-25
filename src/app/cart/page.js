@@ -99,6 +99,8 @@ export default function Cart() {
       router.replace("/login");
     } else {
       setLoading(false);
+      // Prefetch the restaurant list page to make the transition instant
+      router.prefetch("/mainRestorentList");
     }
   }, [router]);
 
@@ -384,6 +386,38 @@ export default function Cart() {
     setLoading(true);
 
     try {
+      // ✅ Double-check restaurant status from database before paying
+      let checkRestaurantId = String(cartItems[0].restid || "");
+      if (!checkRestaurantId || checkRestaurantId === "undefined") {
+        checkRestaurantId = String(cartItems[0].restid || cartItems[0].restaurantName);
+      }
+
+      if (checkRestaurantId) {
+        try {
+          const statusRes = await axios.get(`/api/restaurant-status?restaurantId=${checkRestaurantId}`);
+          if (statusRes.data && statusRes.data.isActive === false) {
+            setLoading(false);
+            setPopup({
+              show: true,
+              message: "We are sorry, this restaurant is currently closed and not accepting orders. Please browse our other available restaurants.",
+              isSuccess: false,
+              buttonText: "Browse Restaurants",
+              onClose: () => {
+                // Clear cart immediately from localStorage and notify Navbar to update its cart badge count.
+                // Bypassing local React state updates avoids redundant re-renders of the unmounting Cart page.
+                localStorage.removeItem('cart');
+                window.dispatchEvent(new Event("cartUpdated"));
+                router.push('/mainRestorentList');
+              }
+            });
+            return;
+          }
+        } catch (statusErr) {
+          console.error("Failed to fetch restaurant status before checkout:", statusErr);
+          // If the status API itself fails due to network/server issues, we log it and proceed so we do not block valid checkouts.
+        }
+      }
+
       const latStr = localStorage.getItem("customerLat");
       const lngStr = localStorage.getItem("customerLng");
 
@@ -507,7 +541,13 @@ export default function Cart() {
         <ErrorPopup
           message={popup.message}
           isSuccess={popup.isSuccess}
-          onClose={() => setPopup({ ...popup, show: false })}
+          buttonText={popup.buttonText}
+          onClose={() => {
+            if (popup.onClose) {
+              popup.onClose();
+            }
+            setPopup({ show: false, message: '', isSuccess: false, buttonText: '' });
+          }}
         />
       )}
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
