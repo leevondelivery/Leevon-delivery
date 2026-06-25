@@ -467,3 +467,14 @@ body {
     border-width: 5px;
     color: #2E7D32;
 }
+
+.rest-card-closed {
+    filter: grayscale(60%);
+    opacity: 0.80;
+}
+
+.rest-card-closed .unique-image-container img,
+.rest-card-closed .rating-pill-floating,
+.rest-card-closed .rest-location-modern i {
+    filter: grayscale(100%);
+}

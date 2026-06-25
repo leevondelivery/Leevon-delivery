@@ -9,6 +9,7 @@ export default function RestorentDisplay(props) {
   }, []);
   // Normalize data whether passed as a 'data' object or individual props
   const item = props.data || props;
+  const isActive = props.isActive !== false;
 
   // Handle location/place naming differences
   const locationText = item.location || item.place || '';
@@ -30,7 +31,7 @@ export default function RestorentDisplay(props) {
 
   return (
     <div className={containerClass}>
-      <div className="restaurant-card">
+      <div className={`restaurant-card ${!isActive ? 'restaurant-closed' : ''}`}>
         <div className="restaurant-content">
           <div className="restaurant-info">
             <h2 className="restaurant-name">{item.name}</h2>

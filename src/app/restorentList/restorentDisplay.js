@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 export default function RestorentDisplay({ name, place, rating, image, distance, isActive = true }) {
     return (
-        <div className="rest-card-main">
+        <div className={`rest-card-main ${!isActive ? 'rest-card-closed' : ''}`}>
             {/* Unique Modern Card Structure */}
             <div className="rest-card-unique position-relative">
                 {/* Image Section with Hover Zoom */}

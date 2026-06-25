@@ -1186,6 +1186,13 @@ export default function RestorentList({ externalSearch, onSearchChange }) {
                             // If no text search, fallback to standard type filter
                             return restaurantMatchesType;
                         })
+                        .sort((a, b) => {
+                            const aActive = restaurantStatuses[a.id] !== false;
+                            const bActive = restaurantStatuses[b.id] !== false;
+                            if (aActive && !bActive) return -1;
+                            if (!aActive && bActive) return 1;
+                            return 0;
+                        })
                         .map(item => (
                             <div key={item.name} className="mb-3">
                                 <button onClick={() => handleClicke(item.name)} className="w-100 border-0 bg-transparent p-0">

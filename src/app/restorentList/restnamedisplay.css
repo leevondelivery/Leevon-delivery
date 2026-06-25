@@ -184,3 +184,13 @@
     font-size: 12px;
     font-weight: 700;
 }
+
+.restaurant-closed {
+    filter: grayscale(60%);
+    opacity: 0.80;
+}
+
+.restaurant-closed .restaurant-image,
+.restaurant-closed .rating-badge {
+    filter: grayscale(100%);
+}
